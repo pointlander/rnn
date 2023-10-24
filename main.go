@@ -30,6 +30,8 @@ func main() {
 		panic(err)
 	}
 
+	data = data[:1024]
+
 	input := NewMatrix(0, Cols, 1)
 	input.Data = input.Data[:Cols]
 	layer := NewMatrix(0, Cols, Rows)
@@ -46,5 +48,21 @@ func main() {
 		input.Data[Offset+int(symbol)] = 1
 		output := Everett(Add(Mul(layer, input), bias))
 		copy(input.Data[:Offset], output.Data)
+	}
+
+	input2 := NewMatrix(0, 2*Width, 1)
+	input2.Data = input2.Data[:2*Width]
+	layer2 := NewMatrix(0, 2*Width, Width+256)
+	bias2 := NewMatrix(0, 1, Width+256)
+	bias2.Data = bias2.Data[:Width+256]
+	factor2 := math.Sqrt(2.0 / float64(2*Width))
+	for i := 0; i < 2*Width*(Width+256); i++ {
+		layer2.Data = append(layer2.Data, factor2*rng.NormFloat64())
+	}
+	copy(input2.Data, input.Data[:Offset])
+	for _, symbol := range data {
+		_ = symbol
+		output := Everett(Add(Mul(layer2, input2), bias2))
+		copy(input2.Data, output.Data[:Offset])
 	}
 }
