@@ -256,6 +256,12 @@ func Everett(m Matrix) Matrix {
 	}
 	for _, value := range m.Data {
 		min, max := value, value
+		if min < -1 {
+			min = -1
+		}
+		if max > 1 {
+			max = 1
+		}
 		if min > 0 {
 			min = 0
 		}

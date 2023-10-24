@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"math"
 	"math/rand"
@@ -134,11 +135,13 @@ func (n *Network) Inference(data []byte) {
 		output := Everett(Add(Mul(n.DecoderWeights, n.DecoderState), n.DecoderBias))
 		copy(n.DecoderState.Data, output.Data[:Offset])
 		expected := make([]float64, 512)
-		expected[2*int(symbol)] = 1
+		expected[2*int(symbol)+1] = 1
+		sum := 0.0
 		for i := 0; i < 512; i++ {
 			diff := expected[i] - output.Data[Offset+i]
-			loss += diff * diff
+			sum += diff * diff
 		}
+		loss += sum / 512
 	}
 	n.Loss = loss
 }
@@ -155,4 +158,5 @@ func main() {
 	distribution := NewDistribution(rng)
 	sample := distribution.Sample(rng)
 	sample.Inference(data)
+	fmt.Println(sample.Loss)
 }
