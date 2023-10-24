@@ -13,14 +13,20 @@ import (
 const (
 	// Width is the width of the network
 	Width = 256
-	// Cols is the number of columns
-	Cols = 2*Width + 256
-	// Rows is the number of rows
-	Rows = Width
-	// Offset is the input offset
+	// Offset is the offset
 	Offset = 2 * Width
-	// Size is the number of parameters
-	Size = Cols * Rows
+	// EncoderCols is the number of encoder columns
+	EncoderCols = 2*Width + 256
+	// EncoderRows is the number of encoder rows
+	EncoderRows = Width
+	// EncoderSize is the number of encoder parameters
+	EncoderSize = EncoderCols * EncoderRows
+	// DecoderCols is the number of decoder columns
+	DecoderCols = 2 * Width
+	// DecoderRows is the number of decoder rows
+	DecoderRows = Width + 256
+	// DecoderSize is the number of decoder parameters
+	DecoderSize = DecoderCols * DecoderRows
 )
 
 func main() {
@@ -32,37 +38,37 @@ func main() {
 
 	data = data[:1024]
 
-	input := NewMatrix(0, Cols, 1)
-	input.Data = input.Data[:Cols]
-	layer := NewMatrix(0, Cols, Rows)
-	bias := NewMatrix(0, 1, Rows)
-	bias.Data = bias.Data[:Rows]
-	factor := math.Sqrt(2.0 / float64(Cols))
-	for i := 0; i < Size; i++ {
-		layer.Data = append(layer.Data, factor*rng.NormFloat64())
+	inpute := NewMatrix(0, EncoderCols, 1)
+	inpute.Data = inpute.Data[:EncoderCols]
+	layere := NewMatrix(0, EncoderCols, EncoderRows)
+	biase := NewMatrix(0, 1, EncoderRows)
+	biase.Data = biase.Data[:EncoderRows]
+	factor := math.Sqrt(2.0 / float64(EncoderCols))
+	for i := 0; i < EncoderSize; i++ {
+		layere.Data = append(layere.Data, factor*rng.NormFloat64())
 	}
 	for _, symbol := range data {
 		for i := 0; i < 256; i++ {
-			input.Data[Offset+i] = 0
+			inpute.Data[Offset+i] = 0
 		}
-		input.Data[Offset+int(symbol)] = 1
-		output := Everett(Add(Mul(layer, input), bias))
-		copy(input.Data[:Offset], output.Data)
+		inpute.Data[Offset+int(symbol)] = 1
+		output := Everett(Add(Mul(layere, inpute), biase))
+		copy(inpute.Data[:Offset], output.Data)
 	}
 
-	input2 := NewMatrix(0, 2*Width, 1)
-	input2.Data = input2.Data[:2*Width]
-	layer2 := NewMatrix(0, 2*Width, Width+256)
-	bias2 := NewMatrix(0, 1, Width+256)
-	bias2.Data = bias2.Data[:Width+256]
-	factor2 := math.Sqrt(2.0 / float64(2*Width))
-	for i := 0; i < 2*Width*(Width+256); i++ {
-		layer2.Data = append(layer2.Data, factor2*rng.NormFloat64())
+	inputd := NewMatrix(0, DecoderCols, 1)
+	inputd.Data = inputd.Data[:DecoderCols]
+	layerd := NewMatrix(0, DecoderCols, DecoderRows)
+	biasd := NewMatrix(0, 1, DecoderRows)
+	biasd.Data = biasd.Data[:DecoderRows]
+	factord := math.Sqrt(2.0 / float64(DecoderCols))
+	for i := 0; i < DecoderSize; i++ {
+		layerd.Data = append(layerd.Data, factord*rng.NormFloat64())
 	}
-	copy(input2.Data, input.Data[:Offset])
+	copy(inputd.Data, inpute.Data[:Offset])
 	for _, symbol := range data {
 		_ = symbol
-		output := Everett(Add(Mul(layer2, input2), bias2))
-		copy(input2.Data, output.Data[:Offset])
+		output := Everett(Add(Mul(layerd, inputd), biasd))
+		copy(inputd.Data, output.Data[:Offset])
 	}
 }
