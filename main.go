@@ -16,15 +16,15 @@ const (
 	// Width is the width of the network
 	Width = 256
 	// Offset is the offset
-	Offset = 2 * Width
+	Offset = Width
 	// EncoderCols is the number of encoder columns
-	EncoderCols = 2*Width + 256
+	EncoderCols = Width + 256
 	// EncoderRows is the number of encoder rows
 	EncoderRows = Width
 	// EncoderSize is the number of encoder parameters
 	EncoderSize = EncoderCols * EncoderRows
 	// DecoderCols is the number of decoder columns
-	DecoderCols = 2 * Width
+	DecoderCols = Width
 	// DecoderRows is the number of decoder rows
 	DecoderRows = Width + 256
 	// DecoderSize is the number of decoder parameters
@@ -127,22 +127,22 @@ func (n *Network) Inference(data []byte) {
 			n.EncoderState.Data[Offset+i] = 0
 		}
 		n.EncoderState.Data[Offset+int(symbol)] = 1
-		output := Everett(Add(Mul(n.EncoderWeights, n.EncoderState), n.EncoderBias))
+		output := Sigmoid(Add(Mul(n.EncoderWeights, n.EncoderState), n.EncoderBias))
 		copy(n.EncoderState.Data[:Offset], output.Data)
 	}
 	copy(n.DecoderState.Data, n.EncoderState.Data[:Offset])
 	loss := 0.0
 	for _, symbol := range data {
-		output := Everett(Add(Mul(n.DecoderWeights, n.DecoderState), n.DecoderBias))
+		output := Sigmoid(Add(Mul(n.DecoderWeights, n.DecoderState), n.DecoderBias))
 		copy(n.DecoderState.Data, output.Data[:Offset])
-		expected := make([]float64, 512)
-		expected[2*int(symbol)+1] = 1
+		expected := make([]float64, 256)
+		expected[int(symbol)] = 1
 		sum := 0.0
-		for i := 0; i < 512; i++ {
+		for i := 0; i < 256; i++ {
 			diff := expected[i] - output.Data[Offset+i]
 			sum += diff * diff
 		}
-		loss += sum / 512
+		loss += sum / 256
 	}
 	n.Loss = loss
 }
@@ -154,10 +154,11 @@ func main() {
 		panic(err)
 	}
 
-	data = data[:1024]
+	data = data[:2]
 
 	distribution := NewDistribution(rng)
 	networks := make([]Network, 64)
+	minLoss := math.MaxFloat64
 	for i := 0; i < 128; i++ {
 		for j := range networks {
 			networks[j] = distribution.Sample(rng)
@@ -183,6 +184,11 @@ func main() {
 			if stddev < min {
 				min, index = stddev, j
 			}
+		}
+		if networks[index].Loss < minLoss {
+			minLoss = networks[index].Loss
+		} else {
+			continue
 		}
 		fmt.Println(min, index, networks[index].Loss)
 		next := Distribution{
