@@ -185,5 +185,72 @@ func main() {
 			}
 		}
 		fmt.Println(min, index, networks[index].Loss)
+		next := Distribution{
+			EncoderWeights: make([]Random, len(distribution.EncoderWeights)),
+			EncoderBias:    make([]Random, len(distribution.EncoderBias)),
+			DecoderWeights: make([]Random, len(distribution.DecoderWeights)),
+			DecoderBias:    make([]Random, len(distribution.DecoderBias)),
+		}
+		for j := 0; j < 8; j++ {
+			for k, value := range networks[index+j].EncoderWeights.Data {
+				next.EncoderWeights[k].Mean += value
+			}
+			for k, value := range networks[index+j].EncoderBias.Data {
+				next.EncoderBias[k].Mean += value
+			}
+			for k, value := range networks[index+j].DecoderWeights.Data {
+				next.DecoderWeights[k].Mean += value
+			}
+			for k, value := range networks[index+j].DecoderBias.Data {
+				next.DecoderBias[k].Mean += value
+			}
+		}
+		for j := range next.EncoderWeights {
+			next.EncoderWeights[j].Mean /= 8
+		}
+		for j := range next.EncoderBias {
+			next.EncoderBias[j].Mean /= 8
+		}
+		for j := range next.DecoderWeights {
+			next.DecoderWeights[j].Mean /= 8
+		}
+		for j := range next.DecoderBias {
+			next.DecoderBias[j].Mean /= 8
+		}
+		for j := 0; j < 8; j++ {
+			for k, value := range networks[index+j].EncoderWeights.Data {
+				diff := next.EncoderWeights[k].Mean - value
+				next.EncoderWeights[k].Stddev += diff * diff
+			}
+			for k, value := range networks[index+j].EncoderBias.Data {
+				diff := next.EncoderBias[k].Mean - value
+				next.EncoderBias[k].Stddev += diff * diff
+			}
+			for k, value := range networks[index+j].DecoderWeights.Data {
+				diff := next.DecoderWeights[k].Mean - value
+				next.DecoderWeights[k].Stddev += diff * diff
+			}
+			for k, value := range networks[index+j].DecoderBias.Data {
+				diff := next.DecoderBias[k].Mean - value
+				next.DecoderBias[k].Stddev += diff * diff
+			}
+		}
+		for j := range next.EncoderWeights {
+			next.EncoderWeights[j].Stddev /= 8
+			next.EncoderWeights[j].Stddev = math.Sqrt(next.EncoderWeights[j].Stddev)
+		}
+		for j := range next.EncoderBias {
+			next.EncoderBias[j].Stddev /= 8
+			next.EncoderBias[j].Stddev = math.Sqrt(next.EncoderBias[j].Stddev)
+		}
+		for j := range next.DecoderWeights {
+			next.DecoderWeights[j].Stddev /= 8
+			next.DecoderWeights[j].Stddev = math.Sqrt(next.DecoderWeights[j].Stddev)
+		}
+		for j := range next.DecoderBias {
+			next.DecoderBias[j].Stddev /= 8
+			next.DecoderBias[j].Stddev = math.Sqrt(next.DecoderBias[j].Stddev)
+		}
+		distribution = next
 	}
 }
