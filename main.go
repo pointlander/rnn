@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"math"
 	"math/rand"
+	"sort"
 )
 
 const (
@@ -156,7 +157,33 @@ func main() {
 	data = data[:1024]
 
 	distribution := NewDistribution(rng)
-	sample := distribution.Sample(rng)
-	sample.Inference(data)
-	fmt.Println(sample.Loss)
+	networks := make([]Network, 64)
+	for i := 0; i < 128; i++ {
+		for j := range networks {
+			networks[j] = distribution.Sample(rng)
+			networks[j].Inference(data)
+		}
+		sort.Slice(networks, func(i, j int) bool {
+			return networks[i].Loss < networks[j].Loss
+		})
+		min, index := math.MaxFloat64, 0
+		for j := 0; j < 64-8; j++ {
+			mean := 0.0
+			for k := 0; k < 8; k++ {
+				mean += networks[j+k].Loss
+			}
+			mean /= 8
+			stddev := 0.0
+			for k := 0; k < 8; k++ {
+				diff := mean - networks[j+k].Loss
+				stddev += diff * diff
+			}
+			stddev /= 8
+			stddev = math.Sqrt(stddev)
+			if stddev < min {
+				min, index = stddev, j
+			}
+		}
+		fmt.Println(min, index, networks[index].Loss)
+	}
 }
