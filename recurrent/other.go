@@ -5,7 +5,7 @@
 //go:build 386 || arm || arm64
 // +build 386 arm arm64
 
-package main
+package recurrent
 
 func dot(X, Y []float64) float64 {
 	var sum float64
