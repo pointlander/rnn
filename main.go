@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"math"
 	"math/rand"
+	"runtime"
 	"sort"
 )
 
@@ -127,13 +128,13 @@ func (n *Network) Inference(data []byte) {
 			n.EncoderState.Data[Offset+i] = 0
 		}
 		n.EncoderState.Data[Offset+int(symbol)] = 1
-		output := Sigmoid(Add(Mul(n.EncoderWeights, n.EncoderState), n.EncoderBias))
+		output := Step(Add(Mul(n.EncoderWeights, n.EncoderState), n.EncoderBias))
 		copy(n.EncoderState.Data[:Offset], output.Data)
 	}
 	copy(n.DecoderState.Data, n.EncoderState.Data[:Offset])
 	loss := 0.0
 	for _, symbol := range data {
-		output := Sigmoid(Add(Mul(n.DecoderWeights, n.DecoderState), n.DecoderBias))
+		output := Step(Add(Mul(n.DecoderWeights, n.DecoderState), n.DecoderBias))
 		copy(n.DecoderState.Data, output.Data[:Offset])
 		expected := make([]float64, 256)
 		expected[int(symbol)] = 1
@@ -154,15 +155,37 @@ func main() {
 		panic(err)
 	}
 
-	data = data[:2]
+	data = data[:1024]
 
 	distribution := NewDistribution(rng)
-	networks := make([]Network, 64)
+	networks := make([]Network, 128)
 	minLoss := math.MaxFloat64
+	done := make(chan bool, 8)
+	cpus := runtime.NumCPU()
+	inference := func(j int) {
+		networks[j].Inference(data)
+		done <- true
+	}
 	for i := 0; i < 128; i++ {
 		for j := range networks {
 			networks[j] = distribution.Sample(rng)
-			networks[j].Inference(data)
+		}
+		k, flight := 0, 0
+		for j := 0; j < cpus && k < len(networks); j++ {
+			go inference(k)
+			flight++
+			k++
+		}
+		for k < len(networks) {
+			<-done
+			flight--
+			go inference(k)
+			flight++
+			k++
+		}
+		for flight > 0 {
+			<-done
+			flight--
 		}
 		sort.Slice(networks, func(i, j int) bool {
 			return networks[i].Loss < networks[j].Loss

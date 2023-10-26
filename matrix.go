@@ -247,6 +247,24 @@ func Sigmoid(m Matrix) Matrix {
 	return o
 }
 
+// Step computes the step function of a matrix
+func Step(m Matrix) Matrix {
+	o := Matrix{
+		Cols: m.Cols,
+		Rows: m.Rows,
+		Data: make([]float64, 0, m.Cols*m.Rows),
+	}
+	for _, value := range m.Data {
+		if value > 0 {
+			value = 1
+		} else {
+			value = 0
+		}
+		o.Data = append(o.Data, value)
+	}
+	return o
+}
+
 // Everett computes the split reality activation function
 func Everett(m Matrix) Matrix {
 	o := Matrix{
