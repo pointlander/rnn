@@ -5,10 +5,12 @@
 package recurrent
 
 import (
+	"compress/gzip"
 	"fmt"
 	"io/ioutil"
 	"math"
 	"math/rand"
+	"os"
 	"runtime"
 	"sort"
 )
@@ -151,7 +153,17 @@ func (n *Network) Inference(data []byte) {
 // Learn learns the mode
 func Learn() {
 	rng := rand.New(rand.NewSource(1))
-	data, err := ioutil.ReadFile("pg10.txt")
+	input, err := os.Open("pg10.txt.gz")
+	if err != nil {
+		panic(err)
+	}
+	defer input.Close()
+	reader, err := gzip.NewReader(input)
+	if err != nil {
+		panic(err)
+	}
+	defer reader.Close()
+	data, err := ioutil.ReadAll(reader)
 	if err != nil {
 		panic(err)
 	}
