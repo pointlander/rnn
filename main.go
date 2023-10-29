@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/pointlander/rnn/quanta"
 	"github.com/pointlander/rnn/recurrent"
 )
 
@@ -60,6 +61,8 @@ func main() {
 	fmt.Println(random)
 	fmt.Println(neuron)
 	fmt.Println("count", count)
+
+	quanta.Learn()
 
 	if *FlagRecurrent {
 		recurrent.Learn()
