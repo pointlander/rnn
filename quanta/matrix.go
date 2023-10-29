@@ -34,13 +34,13 @@ func (m Matrix) Size() int {
 func dot(X, Y []uint64) int {
 	sum := 0
 	for i, x := range X {
+		y := Y[i]
 		for k := 0; k < 64; k++ {
-			a := -1
+			a, b := -1, -1
 			if (x>>k)&1 == 1 {
 				a = 1
 			}
-			b := -1
-			if (Y[i]>>k)&1 == 1 {
+			if (y>>k)&1 == 1 {
 				b = 1
 			}
 			sum += a * b
