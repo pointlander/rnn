@@ -350,3 +350,90 @@ func SelfEntropy(Q, K, V Matrix) []float64 {
 	}
 	return results
 }
+
+// Matrix32 is a float32 matrix
+type Matrix32 struct {
+	Cols   int
+	Rows   int
+	Data   []float32
+	States [][]float32
+}
+
+// NewMatrix32 creates a new float32 matrix
+func NewMatrix32(states, cols, rows int) Matrix32 {
+	m := Matrix32{
+		Cols: cols,
+		Rows: rows,
+		Data: make([]float32, 0, cols*rows),
+	}
+	if states > 0 {
+		m.States = make([][]float32, states)
+		for i := range m.States {
+			m.States[i] = make([]float32, cols*rows)
+		}
+	}
+	return m
+}
+
+// Size is the size of the float32 matrix
+func (m Matrix32) Size() int {
+	return m.Cols * m.Rows
+}
+
+// Mul multiplies two matrices
+func Mul32(m Matrix32, n Matrix32) Matrix32 {
+	if m.Cols != n.Cols {
+		panic(fmt.Errorf("%d != %d", m.Cols, n.Cols))
+	}
+	columns := m.Cols
+	o := Matrix32{
+		Cols: m.Rows,
+		Rows: n.Rows,
+		Data: make([]float32, 0, m.Rows*n.Rows),
+	}
+	lenn, lenm := len(n.Data), len(m.Data)
+	for i := 0; i < lenn; i += columns {
+		nn := n.Data[i : i+columns]
+		for j := 0; j < lenm; j += columns {
+			mm := m.Data[j : j+columns]
+			o.Data = append(o.Data, dot32(mm, nn))
+		}
+	}
+	return o
+}
+
+// Add32 adds two float32 matrices
+func Add32(m Matrix32, n Matrix32) Matrix32 {
+	lena, lenb := len(m.Data), len(n.Data)
+	if lena%lenb != 0 {
+		panic(fmt.Errorf("%d %% %d != 0", lena, lenb))
+	}
+
+	o := Matrix32{
+		Cols: m.Cols,
+		Rows: m.Rows,
+		Data: make([]float32, 0, m.Cols*m.Rows),
+	}
+	for i, value := range m.Data {
+		o.Data = append(o.Data, value+n.Data[i%lenb])
+	}
+	return o
+}
+
+// Step32 computes the step function of a float32 matrix
+func Step32(m Matrix32) Matrix32 {
+	o := Matrix32{
+		Cols: m.Cols,
+		Rows: m.Rows,
+		Data: make([]float32, 0, m.Cols*m.Rows),
+	}
+	for _, value := range m.Data {
+		if value > 0 {
+			value = 1
+		} else {
+			value = 0
+		}
+		o.Data = append(o.Data, value)
+	}
+	return o
+}

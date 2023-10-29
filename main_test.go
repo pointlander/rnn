@@ -13,6 +13,26 @@ import (
 	"github.com/pointlander/rnn/recurrent"
 )
 
+func BenchmarkFloat32(b *testing.B) {
+	rng := rand.New(rand.NewSource(1))
+	factor := math.Sqrt(2.0 / float64(256))
+	layer := recurrent.NewMatrix32(0, 256, 256)
+	for i := 0; i < 256*256; i++ {
+		layer.Data = append(layer.Data, float32(factor*rng.NormFloat64()))
+	}
+	bias := recurrent.NewMatrix32(0, 1, 256)
+	for i := 0; i < 256; i++ {
+		bias.Data = append(bias.Data, float32(factor*rng.NormFloat64()))
+	}
+	input := recurrent.NewMatrix32(0, 256, 1)
+	for i := 0; i < 256; i++ {
+		input.Data = append(input.Data, float32(factor*rng.NormFloat64()))
+	}
+	for i := 0; i < b.N; i++ {
+		recurrent.Step32(recurrent.Add32(recurrent.Mul32(layer, input), bias))
+	}
+}
+
 func BenchmarkFloat64(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
 	factor := math.Sqrt(2.0 / float64(256))
