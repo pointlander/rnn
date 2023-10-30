@@ -6,10 +6,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"math/rand"
 
-	"github.com/pointlander/rnn/quanta"
 	"github.com/pointlander/rnn/recurrent"
 )
 
@@ -21,7 +18,7 @@ var (
 func main() {
 	flag.Parse()
 
-	const size = 1024
+	/*const size = 1024
 	rng := rand.New(rand.NewSource(1))
 	type Random struct {
 		Mean   float64
@@ -62,7 +59,7 @@ func main() {
 	fmt.Println(neuron)
 	fmt.Println("count", count)
 
-	quanta.Learn()
+	quanta.Learn()*/
 
 	if *FlagRecurrent {
 		recurrent.Learn()

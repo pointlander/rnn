@@ -431,7 +431,7 @@ func Step32(m Matrix32) Matrix32 {
 		if value > 0 {
 			value = 1
 		} else {
-			value = 0
+			value = -1
 		}
 		o.Data = append(o.Data, value)
 	}
