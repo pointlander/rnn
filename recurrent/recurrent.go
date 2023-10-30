@@ -136,16 +136,14 @@ func (n *Network) Inference(data []byte) {
 	copy(n.DecoderState.Data, n.EncoderState.Data[:Offset])
 	loss := 0.0
 	for _, symbol := range data {
-		output := Step32(Add32(Mul32(n.DecoderWeights, n.DecoderState), n.DecoderBias))
+		direct := Add32(Mul32(n.DecoderWeights, n.DecoderState), n.DecoderBias)
+		output := Step32(direct)
 		copy(n.DecoderState.Data, output.Data[:Offset])
 		expected := make([]float64, 256)
-		for i := 0; i < 256; i++ {
-			expected[i] = -1
-		}
 		expected[int(symbol)] = 1
 		sum := 0.0
 		for i := 0; i < 256; i++ {
-			diff := expected[i] - float64(output.Data[Offset+i])
+			diff := expected[i] - float64(direct.Data[Offset+i])
 			sum += diff * diff
 		}
 		loss += sum / 256
