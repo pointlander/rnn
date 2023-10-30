@@ -53,6 +53,37 @@ func BenchmarkFloat64(b *testing.B) {
 	}
 }
 
+func BenchmarkUint8(b *testing.B) {
+	rng := rand.New(rand.NewSource(1))
+	layer := quanta.NewMatrix8(256, 256)
+	for i := 0; i < 256*256; i++ {
+		v := -1
+		if rng.Intn(2) == 1 {
+			v = 1
+		}
+		layer.Data = append(layer.Data, int8(v))
+	}
+	bias := quanta.NewMatrix8(1, 256)
+	for i := 0; i < 256; i++ {
+		v := -1
+		if rng.Intn(2) == 1 {
+			v = 1
+		}
+		bias.Data = append(bias.Data, int8(v))
+	}
+	input := quanta.NewMatrix8(256, 1)
+	for i := 0; i < 256; i++ {
+		v := -1
+		if rng.Intn(2) == 1 {
+			v = 1
+		}
+		input.Data = append(input.Data, int8(v))
+	}
+	for i := 0; i < b.N; i++ {
+		quanta.Layer8(layer, input, bias)
+	}
+}
+
 func BenchmarkUint64(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
 	layer := quanta.NewMatrix(256, 256)
