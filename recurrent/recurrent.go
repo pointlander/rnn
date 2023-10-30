@@ -139,6 +139,9 @@ func (n *Network) Inference(data []byte) {
 		output := Step32(Add32(Mul32(n.DecoderWeights, n.DecoderState), n.DecoderBias))
 		copy(n.DecoderState.Data, output.Data[:Offset])
 		expected := make([]float64, 256)
+		for i := 0; i < 256; i++ {
+			expected[i] = -1
+		}
 		expected[int(symbol)] = 1
 		sum := 0.0
 		for i := 0; i < 256; i++ {
