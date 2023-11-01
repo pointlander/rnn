@@ -64,6 +64,62 @@ type BF struct {
 	Program []Instruction
 }
 
+// String generates the string representation of the program
+func (b BF) String() string {
+	program := ""
+	for _, instruction := range b.Program {
+		switch instruction {
+		case InstructionIncrementPointer:
+			program += ">"
+		case InstructionDecrementPointer:
+			program += "<"
+		case InstructionIncrement:
+			program += "+"
+		case InstructionDecrement:
+			program += "-"
+		case InstructionOutput:
+			program += "."
+		case InstructionInput:
+			program += ","
+		case InstructionJumpForward:
+			program += "["
+		case InstructionJumpBack:
+			program += "]"
+		}
+	}
+	return program
+}
+
+// Compile compiles the program
+func Compile(program string, size int) BF {
+	input := []byte(program)
+	bf := BF{
+		Memory: make([]uint8, size),
+	}
+	for _, symbol := range input {
+		switch symbol {
+		case '>':
+			bf.Program = append(bf.Program, InstructionIncrementPointer)
+		case '<':
+			bf.Program = append(bf.Program, InstructionDecrementPointer)
+		case '+':
+			bf.Program = append(bf.Program, InstructionIncrement)
+		case '-':
+			bf.Program = append(bf.Program, InstructionDecrement)
+		case '.':
+			bf.Program = append(bf.Program, InstructionOutput)
+		case ',':
+			bf.Program = append(bf.Program, InstructionInput)
+		case '[':
+			bf.Program = append(bf.Program, InstructionJumpForward)
+		case ']':
+			bf.Program = append(bf.Program, InstructionJumpBack)
+		}
+	}
+	return bf
+}
+
+// Run the bf program
 func (b *BF) Run() {
 	length, count := uint(len(b.Memory)), uint(len(b.Input))
 	for i := 0; i < len(b.Program); i++ {
@@ -125,4 +181,14 @@ func (b *BF) Run() {
 			}
 		}
 	}
+}
+
+// Reset the bf state machine
+func (b *BF) Reset() {
+	b.Pointer = 0
+	for i := range b.Memory {
+		b.Memory[i] = 0
+	}
+	b.In = 0
+	b.Output = []uint8{}
 }

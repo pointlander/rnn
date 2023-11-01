@@ -60,36 +60,10 @@ Pointer :   ^
 >++.                    And finally a newline from Cell #6`
 
 func BenchmarkBF(b *testing.B) {
-	input := []byte(program)
-	bf := discrete.BF{
-		Memory: make([]uint8, 30000),
-	}
-	for _, symbol := range input {
-		switch symbol {
-		case '>':
-			bf.Program = append(bf.Program, discrete.InstructionIncrementPointer)
-		case '<':
-			bf.Program = append(bf.Program, discrete.InstructionDecrementPointer)
-		case '+':
-			bf.Program = append(bf.Program, discrete.InstructionIncrement)
-		case '-':
-			bf.Program = append(bf.Program, discrete.InstructionDecrement)
-		case '.':
-			bf.Program = append(bf.Program, discrete.InstructionOutput)
-		case ',':
-			bf.Program = append(bf.Program, discrete.InstructionInput)
-		case '[':
-			bf.Program = append(bf.Program, discrete.InstructionJumpForward)
-		case ']':
-			bf.Program = append(bf.Program, discrete.InstructionJumpBack)
-		}
-	}
+	bf := discrete.Compile(program, 30000)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bf = discrete.BF{
-			Memory:  make([]uint8, 30000),
-			Program: bf.Program,
-		}
+		bf.Reset()
 		bf.Run()
 	}
 }
