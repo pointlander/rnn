@@ -437,3 +437,86 @@ func Step32(m Matrix32) Matrix32 {
 	}
 	return o
 }
+
+// T32 tramsposes a matrix
+func T32(m Matrix32) Matrix32 {
+	o := Matrix32{
+		Cols: m.Rows,
+		Rows: m.Cols,
+		Data: make([]float32, 0, m.Cols*m.Rows),
+	}
+	for i := 0; i < m.Cols; i++ {
+		for j := 0; j < m.Rows; j++ {
+			o.Data = append(o.Data, m.Data[j*m.Cols+i])
+		}
+	}
+	return o
+}
+
+// Normalize32 normalizes a matrix to the unit vector
+func Normalize32(m Matrix32) Matrix32 {
+	size, width := len(m.Data), m.Cols
+	o := Matrix32{
+		Cols: m.Cols,
+		Rows: m.Rows,
+		Data: make([]float32, 0, m.Cols*m.Rows),
+	}
+	for i := 0; i < size; i += width {
+		sum := float32(0.0)
+		for _, ax := range m.Data[i : i+width] {
+			sum += ax * ax
+		}
+		length := float32(math.Sqrt(float64(sum)))
+		if sum == 0 {
+			length = 1
+		}
+		for _, ax := range m.Data[i : i+width] {
+			o.Data = append(o.Data, ax/length)
+		}
+	}
+	return o
+}
+
+func softmax32(values []float32) {
+	max := float32(0.0)
+	for _, v := range values {
+		if v > max {
+			max = v
+		}
+	}
+	s := max * S
+	sum := float32(0.0)
+	for j, value := range values {
+		values[j] = float32(math.Exp(float64(value - s)))
+		sum += values[j]
+	}
+	for j, value := range values {
+		values[j] = value / sum
+	}
+}
+
+// SelfAttention32 computes the self attention of Q, K, V
+func SelfAttention32(Q, K, V Matrix32) Matrix32 {
+	o := Matrix32{
+		Cols: Q.Cols,
+		Rows: Q.Rows,
+		Data: make([]float32, 0, Q.Cols*Q.Rows),
+	}
+	outputs, values := make([]float32, V.Cols), make([]float32, K.Rows)
+	V = T32(V)
+	for i := 0; i < K.Rows; i++ {
+		K := K.Data[i*K.Cols : (i+1)*K.Cols]
+		for j := 0; j < Q.Rows; j++ {
+			Q := Q.Data[j*Q.Cols : (j+1)*Q.Cols]
+			values[j] = dot32(K, Q)
+		}
+		softmax32(values)
+
+		for j := 0; j < V.Rows; j++ {
+			V := V.Data[j*V.Cols : (j+1)*V.Cols]
+			outputs[j] = dot32(values, V)
+		}
+		o.Data = append(o.Data, outputs...)
+	}
+	return o
+}
