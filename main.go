@@ -6,6 +6,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"math/rand"
 
 	"github.com/pointlander/rnn/recurrent"
 )
@@ -60,6 +62,22 @@ func main() {
 	fmt.Println("count", count)
 
 	quanta.Learn()*/
+
+	rng := rand.New(rand.NewSource(1))
+	x := recurrent.NewMatrix32(0, 9, 32)
+	x = recurrent.Normalize32(x)
+	for i := 0; i < 9*32; i++ {
+		x.Data = append(x.Data, float32(rng.NormFloat64()))
+	}
+	y := recurrent.SelfAttention32(x, x, x)
+	for i := 0; i < y.Rows; i++ {
+		sum := float32(0.0)
+		for j := 0; j < y.Cols; j++ {
+			fmt.Printf("%f ", y.Data[i*y.Cols+j])
+			sum += y.Data[i*y.Cols+j]
+		}
+		fmt.Printf("%f\n", sum)
+	}
 
 	if *FlagRecurrent {
 		recurrent.Learn()

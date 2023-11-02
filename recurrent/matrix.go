@@ -516,6 +516,7 @@ func SelfAttention32(Q, K, V Matrix32) Matrix32 {
 			V := V.Data[j*V.Cols : (j+1)*V.Cols]
 			outputs[j] = dot32(values, V)
 		}
+		softmax32(outputs)
 		o.Data = append(o.Data, outputs...)
 	}
 	return o
