@@ -99,19 +99,30 @@ func Learn() {
 			/*loss := levenshtein.DistanceForStrings([]rune("Hello World!"), []rune(output),
 			levenshtein.DefaultOptions)*/
 			target := []byte("Hello World!")
-			loss := 0.0
-			for j := range target {
-				diff := 256
-				if j < len(output) {
-					diff = int(target[j]) - int(output[j])
-				}
-				if diff < 0 {
-					diff = -diff
-				}
-				loss += float64(diff)
+			loss := float64(len(target) - len(output))
+			if loss < 0 {
+				loss = -loss
 			}
-			if len(output) > len(target) {
-				loss += float64((len(output) - len(target)) * 256)
+			if len(output) > 0 {
+				for j, target := range target {
+					min, index := math.MaxInt, 0
+					for k, symbol := range output {
+						diff := int(target) - int(symbol)
+						if diff < 0 {
+							diff = -diff
+						}
+						if diff < min {
+							min, index = diff, k
+						}
+					}
+					diff := j - index
+					if diff < 0 {
+						diff = -diff
+					}
+					loss += float64(diff + min)
+				}
+			} else {
+				loss = math.MaxInt
 			}
 			sample.Loss = float64(loss)
 			samples = append(samples, sample)
