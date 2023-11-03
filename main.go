@@ -6,9 +6,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"math/rand"
 
+	"github.com/pointlander/rnn/discrete"
 	"github.com/pointlander/rnn/recurrent"
 )
 
@@ -63,7 +62,7 @@ func main() {
 
 	quanta.Learn()*/
 
-	rng := rand.New(rand.NewSource(1))
+	/*rng := rand.New(rand.NewSource(1))
 	x := recurrent.NewMatrix32(0, 9, 32)
 	x = recurrent.Normalize32(x)
 	for i := 0; i < 9*32; i++ {
@@ -77,10 +76,12 @@ func main() {
 			sum += y.Data[i*y.Cols+j]
 		}
 		fmt.Printf("%f\n", sum)
-	}
+	}*/
 
 	if *FlagRecurrent {
 		recurrent.Learn()
 		return
 	}
+
+	discrete.Learn()
 }

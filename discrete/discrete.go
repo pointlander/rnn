@@ -4,28 +4,96 @@
 
 package discrete
 
-// LUT is an 8 entry look up table
-type LUT uint8
+import (
+	"fmt"
+	"math/rand"
 
-// FPGA is a field programmable gate array
-type FPGA struct {
-	MEM []uint8
-	LUT []LUT
-	ADJ []uint8
+	"github.com/pointlander/rnn/recurrent"
+	"github.com/texttheater/golang-levenshtein/levenshtein"
+)
+
+const (
+	// Size is the number of instructions
+	Size = 32
+)
+
+// Random is a random variable
+type Random struct {
+	Mean   float64
+	Stddev float64
 }
 
-// NewFPGA creates a new FPGA
-func NewFPGA(size int) FPGA {
-	return FPGA{
-		MEM: make([]uint8, size),
-		LUT: make([]LUT, size),
-		ADJ: make([]uint8, 3*size*size),
+// Distribution is a distribution of BF machines
+type Distribution struct {
+	Instructions [][]Random
+}
+
+// NewDistribution is a new distribution of BF machines
+func NewDistribution(rng *rand.Rand) Distribution {
+	instructions := make([][]Random, Size)
+	for i := range instructions {
+		for j := 0; j < int(InstructionNum); j++ {
+			instructions[i] = append(instructions[i], Random{
+				Mean:   rng.NormFloat64(),
+				Stddev: rng.NormFloat64(),
+			})
+		}
+	}
+	return Distribution{
+		Instructions: instructions,
 	}
 }
 
-// Simulate simulates the FPGA
-func (f *FPGA) Simulate() {
+// Sample is a BF machine sample
+type Sample struct {
+	Instructions recurrent.Matrix32
+	BF
+	Loss float64
+}
 
+// Sample samples the distribution
+func (d Distribution) Sample(rng *rand.Rand) Sample {
+	instructions := recurrent.NewMatrix32(0, int(InstructionNum), Size)
+	for i := 0; i < Size; i++ {
+		for j := 0; j < int(InstructionNum); j++ {
+			random := d.Instructions[i][j]
+			instructions.Data = append(instructions.Data,
+				float32(rng.NormFloat64()*random.Stddev+random.Mean))
+		}
+	}
+	n := recurrent.Normalize32(instructions)
+	y := recurrent.SelfAttention32(n, n, n)
+	program := make([]Instruction, Size)
+	for i := 0; i < Size; i++ {
+		max, instruction := float32(0.0), 0
+		for j := 0; j < y.Cols; j++ {
+			if y.Data[i*y.Cols+j] > max {
+				max, instruction = y.Data[i*y.Cols+j], j
+			}
+		}
+		program[i] = Instruction(instruction)
+	}
+	return Sample{
+		Instructions: instructions,
+		BF: BF{
+			Memory:  make([]uint8, 30000),
+			Program: program,
+		},
+	}
+}
+
+// Learn learns a BF program
+func Learn() {
+	rng := rand.New(rand.NewSource(1))
+	d := NewDistribution(rng)
+	for i := 0; i < 128; i++ {
+		sample := d.Sample(rng)
+		sample.Run()
+		output := string(sample.Output)
+		loss := levenshtein.DistanceForStrings([]rune("Hello World!"), []rune(output),
+			levenshtein.DefaultOptions)
+		fmt.Println(loss)
+	}
 }
 
 // Instruction is a bf instruction
@@ -121,8 +189,8 @@ func Compile(program string, size int) BF {
 
 // Run the bf program
 func (b *BF) Run() {
-	length, count := uint(len(b.Memory)), uint(len(b.Input))
-	for i := 0; i < len(b.Program); i++ {
+	length, count, cycles := uint(len(b.Memory)), uint(len(b.Input)), 0
+	for i := 0; i < len(b.Program) && cycles < 8*1024; i++ {
 		instruction := b.Program[i]
 		switch instruction {
 		case InstructionNoop:
@@ -137,6 +205,9 @@ func (b *BF) Run() {
 		case InstructionOutput:
 			b.Output = append(b.Output, b.Memory[b.Pointer%length])
 		case InstructionInput:
+			if count <= 0 {
+				break
+			}
 			b.Memory[b.Pointer%length] = b.Input[b.In%count]
 			b.In++
 		case InstructionJumpForward:
@@ -180,6 +251,7 @@ func (b *BF) Run() {
 				i--
 			}
 		}
+		cycles++
 	}
 }
 

@@ -1,2 +1,4 @@
+github.com/texttheater/golang-levenshtein/levenshtein v0.0.0-20200805054039-cae8b0eaed6c h1:HelZ2kAFadG0La9d+4htN4HzQ68Bm2iM9qKMSMES6xg=
+github.com/texttheater/golang-levenshtein/levenshtein v0.0.0-20200805054039-cae8b0eaed6c/go.mod h1:JlzghshsemAMDGZLytTFY8C1JQxQPhnatWqNwUXjggo=
 github.com/ziutek/blas v0.0.0-20190227122918-da4ca23e90bb h1:uWiILQloLUVdtPYr1ZZo2zqtlpzo4G8vUpglo/Fs2H8=
 github.com/ziutek/blas v0.0.0-20190227122918-da4ca23e90bb/go.mod h1:J3xKssoVdrwZ2E29fIox/EKxOZWimS7AZ4fOTCFkOLo=
