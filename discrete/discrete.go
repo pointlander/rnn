@@ -6,15 +6,16 @@ package discrete
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
+	"sort"
 
 	"github.com/pointlander/rnn/recurrent"
-	"github.com/texttheater/golang-levenshtein/levenshtein"
 )
 
 const (
 	// Size is the number of instructions
-	Size = 32
+	Size = 2 * 1024
 )
 
 // Random is a random variable
@@ -86,13 +87,96 @@ func (d Distribution) Sample(rng *rand.Rand) Sample {
 func Learn() {
 	rng := rand.New(rand.NewSource(1))
 	d := NewDistribution(rng)
-	for i := 0; i < 128; i++ {
-		sample := d.Sample(rng)
-		sample.Run()
-		output := string(sample.Output)
-		loss := levenshtein.DistanceForStrings([]rune("Hello World!"), []rune(output),
-			levenshtein.DefaultOptions)
-		fmt.Println(loss)
+	minLoss := math.MaxFloat64
+	for e := 0; e < 1024; e++ {
+		samples := []Sample{}
+		for i := 0; i < 1024; i++ {
+			sample := d.Sample(rng)
+			sample.Run()
+			output := sample.Output
+			/*loss := levenshtein.DistanceForStrings([]rune("Hello World!"), []rune(output),
+			levenshtein.DefaultOptions)*/
+			target := []byte("Hello World!")
+			loss := 0.0
+			for j := range target {
+				diff := 256
+				if j < len(output) {
+					diff = int(target[j]) - int(output[j])
+				}
+				if diff < 0 {
+					diff = -diff
+				}
+				loss += float64(diff)
+			}
+			if len(output) > len(target) {
+				loss += float64((len(output) - len(target)) * 256)
+			}
+			sample.Loss = float64(loss)
+			samples = append(samples, sample)
+		}
+		sort.Slice(samples, func(i, j int) bool {
+			return samples[i].Loss < samples[j].Loss
+		})
+		min, index := math.MaxFloat64, 0
+		for j := 0; j < 64-8; j++ {
+			mean := 0.0
+			for k := 0; k < 8; k++ {
+				mean += samples[j+k].Loss
+			}
+			mean /= 8
+			stddev := 0.0
+			for k := 0; k < 8; k++ {
+				diff := mean - samples[j+k].Loss
+				stddev += diff * diff
+			}
+			stddev /= 8
+			stddev = math.Sqrt(stddev)
+			if stddev < min {
+				min, index = stddev, j
+			}
+		}
+		if samples[index].Loss < minLoss {
+			minLoss = samples[index].Loss
+		} else {
+			continue
+		}
+		fmt.Println(min, index, samples[index].Loss)
+		fmt.Println(samples[index].Output)
+		fmt.Println(samples[index].String())
+		next := Distribution{
+			Instructions: make([][]Random, Size),
+		}
+		for i := range next.Instructions {
+			next.Instructions[i] = make([]Random, int(InstructionNum))
+		}
+		for j := 0; j < 8; j++ {
+			for x := 0; x < Size; x++ {
+				for y := 0; y < int(InstructionNum); y++ {
+					next.Instructions[x][y].Mean += float64(samples[index+j].Instructions.Data[x*int(InstructionNum)+y])
+				}
+			}
+		}
+		for j := range next.Instructions {
+			for x := range next.Instructions[j] {
+				next.Instructions[j][x].Mean /= 8
+			}
+		}
+		for j := 0; j < 8; j++ {
+			for x := 0; x < Size; x++ {
+				for y := 0; y < int(InstructionNum); y++ {
+					diff := next.Instructions[x][y].Mean -
+						float64(samples[index+j].Instructions.Data[x*int(InstructionNum)+y])
+					next.Instructions[x][y].Stddev += diff * diff
+				}
+			}
+		}
+		for j := range next.Instructions {
+			for x := range next.Instructions[j] {
+				next.Instructions[j][x].Stddev /= 8
+				next.Instructions[j][x].Stddev = math.Sqrt(next.Instructions[j][x].Stddev)
+			}
+		}
+		d = next
 	}
 }
 
