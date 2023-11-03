@@ -16,6 +16,8 @@ import (
 const (
 	// Size is the number of instructions
 	Size = 2 * 1024
+	// Window is the window size
+	Window = 16
 )
 
 // Random is a random variable
@@ -118,18 +120,18 @@ func Learn() {
 			return samples[i].Loss < samples[j].Loss
 		})
 		min, index := math.MaxFloat64, 0
-		for j := 0; j < 64-8; j++ {
+		for j := 0; j < 64-Window; j++ {
 			mean := 0.0
-			for k := 0; k < 8; k++ {
+			for k := 0; k < Window; k++ {
 				mean += samples[j+k].Loss
 			}
-			mean /= 8
+			mean /= Window
 			stddev := 0.0
-			for k := 0; k < 8; k++ {
+			for k := 0; k < Window; k++ {
 				diff := mean - samples[j+k].Loss
 				stddev += diff * diff
 			}
-			stddev /= 8
+			stddev /= Window
 			stddev = math.Sqrt(stddev)
 			if stddev < min {
 				min, index = stddev, j
@@ -149,7 +151,7 @@ func Learn() {
 		for i := range next.Instructions {
 			next.Instructions[i] = make([]Random, int(InstructionNum))
 		}
-		for j := 0; j < 8; j++ {
+		for j := 0; j < Window; j++ {
 			for x := 0; x < Size; x++ {
 				for y := 0; y < int(InstructionNum); y++ {
 					next.Instructions[x][y].Mean += float64(samples[index+j].Instructions.Data[x*int(InstructionNum)+y])
@@ -158,10 +160,10 @@ func Learn() {
 		}
 		for j := range next.Instructions {
 			for x := range next.Instructions[j] {
-				next.Instructions[j][x].Mean /= 8
+				next.Instructions[j][x].Mean /= Window
 			}
 		}
-		for j := 0; j < 8; j++ {
+		for j := 0; j < Window; j++ {
 			for x := 0; x < Size; x++ {
 				for y := 0; y < int(InstructionNum); y++ {
 					diff := next.Instructions[x][y].Mean -
@@ -172,7 +174,7 @@ func Learn() {
 		}
 		for j := range next.Instructions {
 			for x := range next.Instructions[j] {
-				next.Instructions[j][x].Stddev /= 8
+				next.Instructions[j][x].Stddev /= Window
 				next.Instructions[j][x].Stddev = math.Sqrt(next.Instructions[j][x].Stddev)
 			}
 		}
