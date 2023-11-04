@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"runtime"
 	"sort"
 
 	"github.com/pointlander/rnn/recurrent"
@@ -89,43 +90,66 @@ func (d Distribution) Sample(rng *rand.Rand) Sample {
 func Learn() {
 	rng := rand.New(rand.NewSource(1))
 	d := NewDistribution(rng)
+	samples := []Sample{}
 	minLoss := math.MaxFloat64
-	for e := 0; e < 1024; e++ {
-		samples := []Sample{}
-		for i := 0; i < 1024; i++ {
-			sample := d.Sample(rng)
-			sample.Run()
-			output := sample.Output
-			/*loss := levenshtein.DistanceForStrings([]rune("Hello World!"), []rune(output),
-			levenshtein.DefaultOptions)*/
-			target := []byte("Hello World!")
-			loss := float64(len(target) - len(output))
-			if loss < 0 {
-				loss = -loss
-			}
-			if len(output) > 0 {
-				for j, target := range target {
-					min, index := math.MaxInt, 0
-					for k, symbol := range output {
-						diff := int(target) - int(symbol)
-						if diff < 0 {
-							diff = -diff
-						}
-						if diff < min {
-							min, index = diff, k
-						}
-					}
-					diff := j - index
+	done := make(chan bool, 8)
+	cpus := runtime.NumCPU()
+	inference := func(j int) {
+		samples[j].Run()
+		output := samples[j].Output
+		/*loss := levenshtein.DistanceForStrings([]rune("Hello World!"), []rune(output),
+		levenshtein.DefaultOptions)*/
+		target := []byte("Hello World!")
+		loss := float64(len(target) - len(output))
+		if loss < 0 {
+			loss = -loss
+		}
+		if len(output) > 0 {
+			for j, target := range target {
+				min, index := math.MaxInt, 0
+				for k, symbol := range output {
+					diff := int(target) - int(symbol)
 					if diff < 0 {
 						diff = -diff
 					}
-					loss += float64(diff + min)
+					if diff < min {
+						min, index = diff, k
+					}
 				}
-			} else {
-				loss = math.MaxInt
+				diff := j - index
+				if diff < 0 {
+					diff = -diff
+				}
+				loss += float64(diff + min)
 			}
-			sample.Loss = float64(loss)
+		} else {
+			loss = math.MaxInt
+		}
+		samples[j].Loss = float64(loss)
+		done <- true
+	}
+	for e := 0; e < 1024; e++ {
+		samples = []Sample{}
+		for i := 0; i < 1024; i++ {
+			sample := d.Sample(rng)
 			samples = append(samples, sample)
+		}
+		k, flight := 0, 0
+		for j := 0; j < cpus && k < len(samples); j++ {
+			go inference(k)
+			flight++
+			k++
+		}
+		for k < len(samples) {
+			<-done
+			flight--
+			go inference(k)
+			flight++
+			k++
+		}
+		for flight > 0 {
+			<-done
+			flight--
 		}
 		sort.Slice(samples, func(i, j int) bool {
 			return samples[i].Loss < samples[j].Loss
