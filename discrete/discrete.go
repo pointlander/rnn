@@ -90,11 +90,13 @@ func (d Distribution) Sample(rng *rand.Rand) Sample {
 func Learn() {
 	rng := rand.New(rand.NewSource(1))
 	d := NewDistribution(rng)
-	samples := []Sample{}
+	samples := make([]Sample, 1024)
 	minLoss := math.MaxFloat64
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
-	inference := func(j int) {
+	inference := func(seed int64, j int) {
+		rng := rand.New(rand.NewSource(seed))
+		samples[j] = d.Sample(rng)
 		samples[j].Run()
 		output := samples[j].Output
 		/*loss := levenshtein.DistanceForStrings([]rune("Hello World!"), []rune(output),
@@ -129,21 +131,16 @@ func Learn() {
 		done <- true
 	}
 	for e := 0; e < 1024; e++ {
-		samples = []Sample{}
-		for i := 0; i < 1024; i++ {
-			sample := d.Sample(rng)
-			samples = append(samples, sample)
-		}
 		k, flight := 0, 0
 		for j := 0; j < cpus && k < len(samples); j++ {
-			go inference(k)
+			go inference(rng.Int63(), k)
 			flight++
 			k++
 		}
 		for k < len(samples) {
 			<-done
 			flight--
-			go inference(k)
+			go inference(rng.Int63(), k)
 			flight++
 			k++
 		}
