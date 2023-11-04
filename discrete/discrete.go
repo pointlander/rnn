@@ -16,7 +16,7 @@ import (
 
 const (
 	// Size is the number of instructions
-	Size = 2 * 1024
+	Size = 512
 	// Window is the window size
 	Window = 16
 )
@@ -228,6 +228,10 @@ const (
 	InstructionIncrement
 	// InstructionDecrement -
 	InstructionDecrement
+	// InstructionLeftShift {
+	InstructionLeftShift
+	// InstructionRightShift }
+	InstructionRightShift
 	// InstructionOutput .
 	InstructionOutput
 	// InstructionInput ,
@@ -263,6 +267,10 @@ func (b BF) String() string {
 			program += "+"
 		case InstructionDecrement:
 			program += "-"
+		case InstructionLeftShift:
+			program += "{"
+		case InstructionRightShift:
+			program += "}"
 		case InstructionOutput:
 			program += "."
 		case InstructionInput:
@@ -292,6 +300,10 @@ func Compile(program string, size int) BF {
 			bf.Program = append(bf.Program, InstructionIncrement)
 		case '-':
 			bf.Program = append(bf.Program, InstructionDecrement)
+		case '{':
+			bf.Program = append(bf.Program, InstructionLeftShift)
+		case '}':
+			bf.Program = append(bf.Program, InstructionRightShift)
 		case '.':
 			bf.Program = append(bf.Program, InstructionOutput)
 		case ',':
@@ -320,6 +332,10 @@ func (b *BF) Run() {
 			b.Memory[b.Pointer%length]++
 		case InstructionDecrement:
 			b.Memory[b.Pointer%length]--
+		case InstructionLeftShift:
+			b.Memory[b.Pointer%length] <<= 1
+		case InstructionRightShift:
+			b.Memory[b.Pointer%length] >>= 1
 		case InstructionOutput:
 			b.Output = append(b.Output, b.Memory[b.Pointer%length])
 		case InstructionInput:
