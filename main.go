@@ -8,6 +8,7 @@ import (
 	"flag"
 
 	"github.com/pointlander/rnn/discrete"
+	"github.com/pointlander/rnn/feedforward"
 	"github.com/pointlander/rnn/recurrent"
 )
 
@@ -28,4 +29,6 @@ func main() {
 		discrete.Learn()
 		return
 	}
+
+	feedforward.Learn()
 }

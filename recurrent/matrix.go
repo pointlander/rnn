@@ -420,6 +420,19 @@ func Add32(m Matrix32, n Matrix32) Matrix32 {
 	return o
 }
 
+// Sigmoid32 computes the sigmoid of a matrix
+func Sigmoid32(m Matrix32) Matrix32 {
+	o := Matrix32{
+		Cols: m.Cols,
+		Rows: m.Rows,
+		Data: make([]float32, 0, m.Cols*m.Rows),
+	}
+	for _, value := range m.Data {
+		o.Data = append(o.Data, float32(1/(1+math.Exp(-float64(value)))))
+	}
+	return o
+}
+
 // Step32 computes the step function of a float32 matrix
 func Step32(m Matrix32) Matrix32 {
 	o := Matrix32{
