@@ -17,9 +17,9 @@ import (
 
 const (
 	// Window is the distribution window
-	Window = 16
+	Window = 32
 	// Middle is the width of the middle layer
-	Middle = 8
+	Middle = 16
 )
 
 // Random is a random variable
