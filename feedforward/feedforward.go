@@ -19,11 +19,11 @@ const (
 	// Window is the distribution window
 	Window = 8
 	// Input size of the input
-	Input = 16
+	Input = 128
 	// Middle is the width of the middle layer
 	Middle = 4
 	// Size is the size of a nn
-	Size = Input*Middle + Middle + Middle*3 + Middle
+	Size = 4*Middle + Middle + Middle*3 + Middle
 )
 
 // Random is a random variable
@@ -164,8 +164,8 @@ func Learn() {
 			networks[j].Layer1Bias))
 		output = recurrent.Add32(recurrent.Mul32(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
 		index := 0
-		layer1Weights := recurrent.NewMatrix32(0, Input, Middle)
-		for i := 0; i < Input*Middle; i++ {
+		layer1Weights := recurrent.NewMatrix32(0, 4, Middle)
+		for i := 0; i < 4*Middle; i++ {
 			layer1Weights.Data = append(layer1Weights.Data, output.Data[index])
 			index++
 		}
@@ -187,7 +187,7 @@ func Learn() {
 		loss := 0.0
 		for i := 0; i < 150; i++ {
 			fisher := data.Fisher[i]
-			input := recurrent.NewMatrix32(0, Input, 1)
+			input := recurrent.NewMatrix32(0, 4, 1)
 			for _, v := range fisher.Measures {
 				input.Data = append(input.Data, float32(v))
 			}
@@ -341,8 +341,8 @@ func Learn() {
 		best.Layer1Bias))
 	output = recurrent.Add32(recurrent.Mul32(best.Layer2Weights, output), best.Layer2Bias)
 	index := 0
-	layer1Weights := recurrent.NewMatrix32(0, Input, Middle)
-	for i := 0; i < Input*Middle; i++ {
+	layer1Weights := recurrent.NewMatrix32(0, 4, Middle)
+	for i := 0; i < 4*Middle; i++ {
 		layer1Weights.Data = append(layer1Weights.Data, output.Data[index])
 		index++
 	}
@@ -364,7 +364,7 @@ func Learn() {
 	correct := 0
 	loss := 0.0
 	for _, fisher := range data.Fisher {
-		input := recurrent.NewMatrix32(0, Input, 1)
+		input := recurrent.NewMatrix32(0, 4, 1)
 		for _, v := range fisher.Measures {
 			input.Data = append(input.Data, float32(v))
 		}
