@@ -17,9 +17,9 @@ import (
 
 const (
 	// Window is the distribution window
-	Window = 32
+	Window = 8
 	// Middle is the width of the middle layer
-	Middle = 16
+	Middle = 4
 )
 
 // Random is a random variable
@@ -48,32 +48,34 @@ type Sample struct {
 // NewDistrution creates a new distribution of feed forward layers
 func NewDistribution(rng *rand.Rand) Distribution {
 	layer1Weights := make([]Random, 0, 4*Middle)
-	factor := math.Sqrt(2.0 / float64(4))
+	//factor := math.Sqrt(2.0 / float64(4))
 	for i := 0; i < 4*Middle; i++ {
 		layer1Weights = append(layer1Weights, Random{
-			Mean:   factor * rng.NormFloat64(),
-			Stddev: factor * rng.NormFloat64(),
+			Mean:   0, //factor * rng.NormFloat64(),
+			Stddev: 1, //factor * rng.NormFloat64(),
 		})
 	}
 	layer1Bias := make([]Random, 0, Middle)
 	for i := 0; i < Middle; i++ {
 		layer1Bias = append(layer1Bias, Random{
-			Mean:   factor * rng.NormFloat64(),
-			Stddev: factor * rng.NormFloat64(),
+			Mean:   0, //factor * rng.NormFloat64(),
+			Stddev: 1, //factor * rng.NormFloat64(),
 		})
 	}
+	//factor = math.Sqrt(2.0 / float64(Middle))
 	layer2Weights := make([]Random, 0, Middle*3)
 	for i := 0; i < Middle*3; i++ {
 		layer2Weights = append(layer2Weights, Random{
-			Mean:   factor * rng.NormFloat64(),
-			Stddev: factor * rng.NormFloat64(),
+			Mean:   0, //factor * rng.NormFloat64(),
+			Stddev: 1, //factor * rng.NormFloat64(),
 		})
 	}
+	//factor = math.Sqrt(2.0 / float64(3))
 	layer2Bias := make([]Random, 0, 3)
 	for i := 0; i < 3; i++ {
 		layer2Bias = append(layer2Bias, Random{
-			Mean:   factor * rng.NormFloat64(),
-			Stddev: factor * rng.NormFloat64(),
+			Mean:   0, //factor * rng.NormFloat64(),
+			Stddev: 1, //factor * rng.NormFloat64(),
 		})
 	}
 	return Distribution{
@@ -160,7 +162,7 @@ func Learn() {
 		networks[j].Loss = loss
 		done <- true
 	}
-	for i := 0; i < 1024; i++ {
+	for i := 0; i < 2*1024; i++ {
 		for j := range networks {
 			networks[j] = distribution.Sample(rng)
 		}
@@ -279,6 +281,7 @@ func Learn() {
 	}
 
 	correct := 0
+	loss := 0.0
 	for _, fisher := range data.Fisher {
 		input := recurrent.NewMatrix32(0, 4, 1)
 		for _, v := range fisher.Measures {
@@ -298,6 +301,15 @@ func Learn() {
 		if index == iris.Labels[fisher.Label] {
 			correct++
 		}
+
+		expected := make([]float32, 3)
+		expected[iris.Labels[fisher.Label]] = 1
+
+		for i, v := range output.Data {
+			diff := float64(v - expected[i])
+			loss += diff * diff
+		}
 	}
-	fmt.Println("correct", correct)
+	fmt.Println("correct", correct, float64(correct)/150)
+	fmt.Println("loss", loss)
 }
