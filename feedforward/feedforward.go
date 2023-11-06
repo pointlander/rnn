@@ -20,6 +20,8 @@ const (
 	Window = 8
 	// Middle is the width of the middle layer
 	Middle = 4
+	// Size is the size of a nn
+	Size = 4*Middle + Middle + Middle*3 + Middle
 )
 
 // Random is a random variable
@@ -30,6 +32,7 @@ type Random struct {
 
 // Distribution is a distribution of a neural network
 type Distribution struct {
+	Input         []Random
 	Layer1Weights []Random
 	Layer1Bias    []Random
 	Layer2Weights []Random
@@ -38,6 +41,7 @@ type Distribution struct {
 
 // Sample is a neural network sample
 type Sample struct {
+	Input         recurrent.Matrix32
 	Layer1Weights recurrent.Matrix32
 	Layer1Bias    recurrent.Matrix32
 	Layer2Weights recurrent.Matrix32
@@ -47,6 +51,13 @@ type Sample struct {
 
 // NewDistrution creates a new distribution of feed forward layers
 func NewDistribution(rng *rand.Rand) Distribution {
+	input := make([]Random, 0, 4)
+	for i := 0; i < 4; i++ {
+		input = append(input, Random{
+			Mean:   0, //factor * rng.NormFloat64(),
+			Stddev: 1, //factor * rng.NormFloat64(),
+		})
+	}
 	layer1Weights := make([]Random, 0, 4*Middle)
 	//factor := math.Sqrt(2.0 / float64(4))
 	for i := 0; i < 4*Middle; i++ {
@@ -63,22 +74,23 @@ func NewDistribution(rng *rand.Rand) Distribution {
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(Middle))
-	layer2Weights := make([]Random, 0, Middle*3)
-	for i := 0; i < Middle*3; i++ {
+	layer2Weights := make([]Random, 0, Middle*Size)
+	for i := 0; i < Middle*Size; i++ {
 		layer2Weights = append(layer2Weights, Random{
 			Mean:   0, //factor * rng.NormFloat64(),
 			Stddev: 1, //factor * rng.NormFloat64(),
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(3))
-	layer2Bias := make([]Random, 0, 3)
-	for i := 0; i < 3; i++ {
+	layer2Bias := make([]Random, 0, Size)
+	for i := 0; i < Size; i++ {
 		layer2Bias = append(layer2Bias, Random{
 			Mean:   0, //factor * rng.NormFloat64(),
 			Stddev: 1, //factor * rng.NormFloat64(),
 		})
 	}
 	return Distribution{
+		Input:         input,
 		Layer1Weights: layer1Weights,
 		Layer1Bias:    layer1Bias,
 		Layer2Weights: layer2Weights,
@@ -89,6 +101,11 @@ func NewDistribution(rng *rand.Rand) Distribution {
 // Sample returns a sampled feedforward neural network
 func (d Distribution) Sample(rng *rand.Rand) Sample {
 	var s Sample
+	s.Input = recurrent.NewMatrix32(0, 4, 1)
+	for i := 0; i < 4; i++ {
+		r := d.Input[i]
+		s.Input.Data = append(s.Input.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
+	}
 	s.Layer1Weights = recurrent.NewMatrix32(0, 4, Middle)
 	s.Layer1Bias = recurrent.NewMatrix32(0, 1, Middle)
 	for i := 0; i < 4*Middle; i++ {
@@ -100,13 +117,13 @@ func (d Distribution) Sample(rng *rand.Rand) Sample {
 		s.Layer1Bias.Data = append(s.Layer1Bias.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
 	}
 
-	s.Layer2Weights = recurrent.NewMatrix32(0, Middle, 3)
-	s.Layer2Bias = recurrent.NewMatrix32(0, 1, 3)
-	for i := 0; i < Middle*3; i++ {
+	s.Layer2Weights = recurrent.NewMatrix32(0, Middle, Size)
+	s.Layer2Bias = recurrent.NewMatrix32(0, 1, Size)
+	for i := 0; i < Middle*Size; i++ {
 		r := d.Layer2Weights[i]
 		s.Layer2Weights.Data = append(s.Layer2Weights.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
 	}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < Size; i++ {
 		r := d.Layer2Bias[i]
 		s.Layer2Bias.Data = append(s.Layer2Bias.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
 	}
@@ -141,6 +158,30 @@ func Learn() {
 	best := Sample{}
 	inference := func(seed int64, j int) {
 		//rng := rand.New(rand.NewSource(seed))
+		output := recurrent.Sigmoid32(recurrent.Add32(recurrent.Mul32(networks[j].Layer1Weights, networks[j].Input),
+			networks[j].Layer1Bias))
+		output = recurrent.Add32(recurrent.Mul32(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
+		index := 0
+		layer1Weights := recurrent.NewMatrix32(0, 4, Middle)
+		for i := 0; i < 4*Middle; i++ {
+			layer1Weights.Data = append(layer1Weights.Data, output.Data[index])
+			index++
+		}
+		layer1Bias := recurrent.NewMatrix32(0, 1, Middle)
+		for i := 0; i < Middle; i++ {
+			layer1Bias.Data = append(layer1Bias.Data, output.Data[index])
+			index++
+		}
+		layer2Weights := recurrent.NewMatrix32(0, Middle, 3)
+		for i := 0; i < Middle*3; i++ {
+			layer2Weights.Data = append(layer2Weights.Data, output.Data[index])
+			index++
+		}
+		layer2Bias := recurrent.NewMatrix32(0, 1, 3)
+		for i := 0; i < 3; i++ {
+			layer2Bias.Data = append(layer2Bias.Data, output.Data[index])
+			index++
+		}
 		loss := 0.0
 		for i := 0; i < 150; i++ {
 			fisher := data.Fisher[i]
@@ -148,12 +189,11 @@ func Learn() {
 			for _, v := range fisher.Measures {
 				input.Data = append(input.Data, float32(v))
 			}
-			output := recurrent.Sigmoid32(recurrent.Add32(recurrent.Mul32(networks[j].Layer1Weights, input),
-				networks[j].Layer1Bias))
-			output = recurrent.Add32(recurrent.Mul32(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
+			output := recurrent.Sigmoid32(recurrent.Add32(recurrent.Mul32(layer1Weights, input), layer1Bias))
+			output = recurrent.Add32(recurrent.Mul32(layer2Weights, output), layer2Bias)
+
 			expected := make([]float32, 3)
 			expected[iris.Labels[fisher.Label]] = 1
-
 			for i, v := range output.Data {
 				diff := float64(v - expected[i])
 				loss += diff * diff
@@ -212,12 +252,16 @@ func Learn() {
 		}
 		fmt.Println(min, index, networks[index].Loss)
 		next := Distribution{
+			Input:         make([]Random, len(distribution.Input)),
 			Layer1Weights: make([]Random, len(distribution.Layer1Weights)),
 			Layer1Bias:    make([]Random, len(distribution.Layer1Bias)),
 			Layer2Weights: make([]Random, len(distribution.Layer2Weights)),
 			Layer2Bias:    make([]Random, len(distribution.Layer2Bias)),
 		}
 		for j := 0; j < Window; j++ {
+			for k, value := range networks[index+j].Input.Data {
+				next.Input[k].Mean += float64(value)
+			}
 			for k, value := range networks[index+j].Layer1Weights.Data {
 				next.Layer1Weights[k].Mean += float64(value)
 			}
@@ -230,6 +274,9 @@ func Learn() {
 			for k, value := range networks[index+j].Layer2Bias.Data {
 				next.Layer2Bias[k].Mean += float64(value)
 			}
+		}
+		for j := range next.Input {
+			next.Input[j].Mean /= Window
 		}
 		for j := range next.Layer1Weights {
 			next.Layer1Weights[j].Mean /= Window
@@ -244,6 +291,10 @@ func Learn() {
 			next.Layer2Bias[j].Mean /= Window
 		}
 		for j := 0; j < Window; j++ {
+			for k, value := range networks[index+j].Input.Data {
+				diff := next.Input[k].Mean - float64(value)
+				next.Input[k].Stddev += diff * diff
+			}
 			for k, value := range networks[index+j].Layer1Weights.Data {
 				diff := next.Layer1Weights[k].Mean - float64(value)
 				next.Layer1Weights[k].Stddev += diff * diff
@@ -260,6 +311,10 @@ func Learn() {
 				diff := next.Layer2Bias[k].Mean - float64(value)
 				next.Layer2Bias[k].Stddev += diff * diff
 			}
+		}
+		for j := range next.Input {
+			next.Input[j].Stddev /= Window
+			next.Input[j].Stddev = math.Sqrt(next.Input[j].Stddev)
 		}
 		for j := range next.Layer1Weights {
 			next.Layer1Weights[j].Stddev /= Window
@@ -280,6 +335,30 @@ func Learn() {
 		distribution = next
 	}
 
+	output := recurrent.Sigmoid32(recurrent.Add32(recurrent.Mul32(best.Layer1Weights, best.Input),
+		best.Layer1Bias))
+	output = recurrent.Add32(recurrent.Mul32(best.Layer2Weights, output), best.Layer2Bias)
+	index := 0
+	layer1Weights := recurrent.NewMatrix32(0, 4, Middle)
+	for i := 0; i < 4*Middle; i++ {
+		layer1Weights.Data = append(layer1Weights.Data, output.Data[index])
+		index++
+	}
+	layer1Bias := recurrent.NewMatrix32(0, 1, Middle)
+	for i := 0; i < Middle; i++ {
+		layer1Bias.Data = append(layer1Bias.Data, output.Data[index])
+		index++
+	}
+	layer2Weights := recurrent.NewMatrix32(0, Middle, 3)
+	for i := 0; i < Middle*3; i++ {
+		layer2Weights.Data = append(layer2Weights.Data, output.Data[index])
+		index++
+	}
+	layer2Bias := recurrent.NewMatrix32(0, 1, 3)
+	for i := 0; i < 3; i++ {
+		layer2Bias.Data = append(layer2Bias.Data, output.Data[index])
+		index++
+	}
 	correct := 0
 	loss := 0.0
 	for _, fisher := range data.Fisher {
@@ -288,9 +367,8 @@ func Learn() {
 			input.Data = append(input.Data, float32(v))
 		}
 
-		output := recurrent.Sigmoid32(recurrent.Add32(recurrent.Mul32(best.Layer1Weights, input),
-			best.Layer1Bias))
-		output = recurrent.Add32(recurrent.Mul32(best.Layer2Weights, output), best.Layer2Bias)
+		output := recurrent.Sigmoid32(recurrent.Add32(recurrent.Mul32(layer1Weights, input), layer1Bias))
+		output = recurrent.Add32(recurrent.Mul32(layer2Weights, output), layer2Bias)
 		max, index := float32(0.0), 0
 		for i, value := range output.Data {
 			if value > max {
