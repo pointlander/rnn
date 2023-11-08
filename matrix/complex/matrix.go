@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package recurrent
+package complex
 
 import (
 	"fmt"
@@ -10,17 +10,17 @@ import (
 	"math/rand"
 )
 
-// ComplexMatrix is a complex matrix
-type ComplexMatrix struct {
+// Matrix is a complex matrix
+type Matrix struct {
 	Cols   int
 	Rows   int
 	Data   []complex128
 	States [][]complex128
 }
 
-// NewComplexMatrix creates a new complex matrix
-func NewComplexMatrix(states, cols, rows int) ComplexMatrix {
-	m := ComplexMatrix{
+// NewMatrix creates a new complex matrix
+func NewMatrix(states, cols, rows int) Matrix {
+	m := Matrix{
 		Cols: cols,
 		Rows: rows,
 		Data: make([]complex128, 0, cols*rows),
@@ -34,9 +34,9 @@ func NewComplexMatrix(states, cols, rows int) ComplexMatrix {
 	return m
 }
 
-// NewRandComplexMatrix creates a new random complex matrix
-func NewRandComplexMatrix(rnd *rand.Rand, states, cols, rows int) ComplexMatrix {
-	m := ComplexMatrix{
+// NewRandMatrix creates a new random complex matrix
+func NewRandMatrix(rnd *rand.Rand, states, cols, rows int) Matrix {
+	m := Matrix{
 		Cols: cols,
 		Rows: rows,
 		Data: make([]complex128, 0, cols*rows),
@@ -55,11 +55,11 @@ func NewRandComplexMatrix(rnd *rand.Rand, states, cols, rows int) ComplexMatrix 
 }
 
 // Size is the size of the complex matrix
-func (m ComplexMatrix) Size() int {
+func (m Matrix) Size() int {
 	return m.Cols * m.Rows
 }
 
-func complexDot(X, Y []complex128) complex128 {
+func dot(X, Y []complex128) complex128 {
 	var sum complex128
 	for i, x := range X {
 		sum += x * Y[i]
@@ -67,13 +67,13 @@ func complexDot(X, Y []complex128) complex128 {
 	return sum
 }
 
-// ComplexMul multiplies two complex matrices
-func ComplexMul(m ComplexMatrix, n ComplexMatrix) ComplexMatrix {
+// MulT multiplies two complex matrices and computes the transpose
+func MulT(m Matrix, n Matrix) Matrix {
 	if m.Cols != n.Cols {
 		panic(fmt.Errorf("%d != %d", m.Cols, n.Cols))
 	}
 	columns := m.Cols
-	o := ComplexMatrix{
+	o := Matrix{
 		Cols: m.Rows,
 		Rows: n.Rows,
 		Data: make([]complex128, 0, m.Rows*n.Rows),
@@ -83,20 +83,20 @@ func ComplexMul(m ComplexMatrix, n ComplexMatrix) ComplexMatrix {
 		nn := n.Data[i : i+columns]
 		for j := 0; j < lenm; j += columns {
 			mm := m.Data[j : j+columns]
-			o.Data = append(o.Data, complexDot(mm, nn))
+			o.Data = append(o.Data, dot(mm, nn))
 		}
 	}
 	return o
 }
 
-// ComplexAdd adds two complex matrices
-func ComplexAdd(m ComplexMatrix, n ComplexMatrix) ComplexMatrix {
+// Add adds two complex matrices
+func Add(m Matrix, n Matrix) Matrix {
 	lena, lenb := len(m.Data), len(n.Data)
 	if lena%lenb != 0 {
 		panic(fmt.Errorf("%d %% %d != 0", lena, lenb))
 	}
 
-	o := ComplexMatrix{
+	o := Matrix{
 		Cols: m.Cols,
 		Rows: m.Rows,
 		Data: make([]complex128, 0, m.Cols*m.Rows),
@@ -107,9 +107,9 @@ func ComplexAdd(m ComplexMatrix, n ComplexMatrix) ComplexMatrix {
 	return o
 }
 
-// ComplexActivation is a complex activation function
-func ComplexActivation(m ComplexMatrix) ComplexMatrix {
-	o := ComplexMatrix{
+// Activation is a complex activation function
+func Activation(m Matrix) Matrix {
+	o := Matrix{
 		Cols: m.Cols,
 		Rows: m.Rows,
 		Data: make([]complex128, 0, m.Cols*m.Rows),
@@ -132,8 +132,8 @@ func ComplexActivation(m ComplexMatrix) ComplexMatrix {
 }
 
 // EverettActivation is the everett complex activation function
-func EverettActivation(m ComplexMatrix) ComplexMatrix {
-	o := ComplexMatrix{
+func EverettActivation(m Matrix) Matrix {
+	o := Matrix{
 		Cols: 2 * m.Cols,
 		Rows: m.Rows,
 		Data: make([]complex128, 0, 2*m.Cols*m.Rows),

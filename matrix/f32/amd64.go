@@ -5,16 +5,12 @@
 //go:build amd64
 // +build amd64
 
-package recurrent
+package f32
 
 import (
 	"github.com/ziutek/blas"
 )
 
-func dot(X, Y []float64) float64 {
-	return blas.Ddot(len(X), X, 1, Y, 1)
-}
-
-func dot32(X, Y []float32) float32 {
+func dot(X, Y []float32) float32 {
 	return blas.Sdot(len(X), X, 1, Y, 1)
 }

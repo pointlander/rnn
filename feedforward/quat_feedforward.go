@@ -12,7 +12,8 @@ import (
 	"sort"
 
 	"github.com/pointlander/datum/iris"
-	"github.com/pointlander/rnn/recurrent"
+	. "github.com/pointlander/rnn/matrix/quaternion"
+
 	"gonum.org/v1/gonum/num/quat"
 )
 
@@ -41,10 +42,10 @@ type QuatDistribution struct {
 
 // QuatSample is a neural network sample
 type QuatSample struct {
-	Layer1Weights recurrent.QuatMatrix
-	Layer1Bias    recurrent.QuatMatrix
-	Layer2Weights recurrent.QuatMatrix
-	Layer2Bias    recurrent.QuatMatrix
+	Layer1Weights Matrix
+	Layer1Bias    Matrix
+	Layer2Weights Matrix
+	Layer2Bias    Matrix
 	Loss          float64
 }
 
@@ -92,8 +93,8 @@ func NewQuatDistribution(rng *rand.Rand) QuatDistribution {
 // QuatSample returns a sampled feedforward neural network
 func (d QuatDistribution) Sample(rng *rand.Rand) QuatSample {
 	var s QuatSample
-	s.Layer1Weights = recurrent.NewQuatMatrix(0, 4, QuatMiddle)
-	s.Layer1Bias = recurrent.NewQuatMatrix(0, 1, QuatMiddle)
+	s.Layer1Weights = NewMatrix(0, 4, QuatMiddle)
+	s.Layer1Bias = NewMatrix(0, 1, QuatMiddle)
 	for i := 0; i < 4*QuatMiddle; i++ {
 		r := d.Layer1Weights[i]
 		s.Layer1Weights.Data = append(s.Layer1Weights.Data, quat.Number{
@@ -113,8 +114,8 @@ func (d QuatDistribution) Sample(rng *rand.Rand) QuatSample {
 		})
 	}
 
-	s.Layer2Weights = recurrent.NewQuatMatrix(0, 2*QuatMiddle, 3)
-	s.Layer2Bias = recurrent.NewQuatMatrix(0, 1, 3)
+	s.Layer2Weights = NewMatrix(0, 2*QuatMiddle, 3)
+	s.Layer2Bias = NewMatrix(0, 1, 3)
 	for i := 0; i < 2*QuatMiddle*3; i++ {
 		r := d.Layer2Weights[i]
 		s.Layer2Weights.Data = append(s.Layer2Weights.Data, quat.Number{
@@ -167,7 +168,7 @@ func QuatLearn() {
 		loss := 0.0
 		for i := 0; i < 150; i++ {
 			fisher := data.Fisher[i]
-			input := recurrent.NewQuatMatrix(0, 4, 1)
+			input := NewMatrix(0, 4, 1)
 			for _, v := range fisher.Measures {
 				input.Data = append(input.Data, quat.Number{
 					Real: v,
@@ -176,9 +177,9 @@ func QuatLearn() {
 					Kmag: 0,
 				})
 			}
-			output := recurrent.QuatEverettActivation(recurrent.QuatAdd(recurrent.QuatMul(networks[j].Layer1Weights, input),
+			output := EverettActivation(Add(MulT(networks[j].Layer1Weights, input),
 				networks[j].Layer1Bias))
-			output = recurrent.QuatAdd(recurrent.QuatMul(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
+			output = Add(MulT(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
 			/*max, index := 0.0, 0
 			penalty := 0.0
 			for i, v := range output.Data {
@@ -406,7 +407,7 @@ func QuatLearn() {
 	correct := 0
 	loss := 0.0
 	for _, fisher := range data.Fisher {
-		input := recurrent.NewQuatMatrix(0, 4, 1)
+		input := NewMatrix(0, 4, 1)
 		for _, v := range fisher.Measures {
 			input.Data = append(input.Data, quat.Number{
 				Real: v,
@@ -416,9 +417,9 @@ func QuatLearn() {
 			})
 		}
 
-		output := recurrent.QuatEverettActivation(recurrent.QuatAdd(recurrent.QuatMul(best.Layer1Weights, input),
+		output := EverettActivation(Add(MulT(best.Layer1Weights, input),
 			best.Layer1Bias))
-		output = recurrent.QuatAdd(recurrent.QuatMul(best.Layer2Weights, output), best.Layer2Bias)
+		output = Add(MulT(best.Layer2Weights, output), best.Layer2Bias)
 		max, index := float32(0.0), 0
 		for i, value := range output.Data {
 			v := float32(quat.Abs(value))

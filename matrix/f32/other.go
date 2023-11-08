@@ -5,17 +5,9 @@
 //go:build 386 || arm || arm64
 // +build 386 arm arm64
 
-package recurrent
+package f32
 
-func dot(X, Y []float64) float64 {
-	var sum float64
-	for i, x := range X {
-		sum += x * Y[i]
-	}
-	return sum
-}
-
-func dot32(X, Y []float32) float32 {
+func dot(X, Y []float32) float32 {
 	var sum float32
 	for i, x := range X {
 		sum += x * Y[i]

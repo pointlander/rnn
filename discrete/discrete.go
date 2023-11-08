@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"sort"
 
-	"github.com/pointlander/rnn/recurrent"
+	. "github.com/pointlander/rnn/matrix/f32"
 )
 
 const (
@@ -50,14 +50,14 @@ func NewDistribution(rng *rand.Rand) Distribution {
 
 // Sample is a BF machine sample
 type Sample struct {
-	Instructions recurrent.Matrix32
+	Instructions Matrix
 	BF
 	Loss float64
 }
 
 // Sample samples the distribution
 func (d Distribution) Sample(rng *rand.Rand) Sample {
-	instructions := recurrent.NewMatrix32(0, int(InstructionNum), Size)
+	instructions := NewMatrix(0, int(InstructionNum), Size)
 	for i := 0; i < Size; i++ {
 		for j := 0; j < int(InstructionNum); j++ {
 			random := d.Instructions[i][j]
@@ -65,8 +65,8 @@ func (d Distribution) Sample(rng *rand.Rand) Sample {
 				float32(rng.NormFloat64()*random.Stddev+random.Mean))
 		}
 	}
-	n := recurrent.Normalize32(instructions)
-	y := recurrent.SelfAttention32(n, n, n)
+	n := Normalize(instructions)
+	y := SelfAttention(n, n, n)
 	program := make([]Instruction, Size)
 	for i := 0; i < Size; i++ {
 		max, instruction := float32(0.0), 0

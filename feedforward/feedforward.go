@@ -13,7 +13,7 @@ import (
 	"sort"
 
 	"github.com/pointlander/datum/iris"
-	"github.com/pointlander/rnn/recurrent"
+	. "github.com/pointlander/rnn/matrix/complex"
 )
 
 const (
@@ -41,10 +41,10 @@ type Distribution struct {
 
 // Sample is a neural network sample
 type Sample struct {
-	Layer1Weights recurrent.ComplexMatrix
-	Layer1Bias    recurrent.ComplexMatrix
-	Layer2Weights recurrent.ComplexMatrix
-	Layer2Bias    recurrent.ComplexMatrix
+	Layer1Weights Matrix
+	Layer1Bias    Matrix
+	Layer2Weights Matrix
+	Layer2Bias    Matrix
 	Loss          float64
 }
 
@@ -100,8 +100,8 @@ func NewDistribution(rng *rand.Rand) Distribution {
 // Sample returns a sampled feedforward neural network
 func (d Distribution) Sample(rng *rand.Rand) Sample {
 	var s Sample
-	s.Layer1Weights = recurrent.NewComplexMatrix(0, 4, Middle)
-	s.Layer1Bias = recurrent.NewComplexMatrix(0, 1, Middle)
+	s.Layer1Weights = NewMatrix(0, 4, Middle)
+	s.Layer1Bias = NewMatrix(0, 1, Middle)
 	for i := 0; i < 4*Middle; i++ {
 		r := d.Layer1Weights[i]
 		s.Layer1Weights.Data = append(s.Layer1Weights.Data, complex(rng.NormFloat64()*r.Stddev+r.Mean,
@@ -113,8 +113,8 @@ func (d Distribution) Sample(rng *rand.Rand) Sample {
 			rng.NormFloat64()*r.IStddev+r.IMean))
 	}
 
-	s.Layer2Weights = recurrent.NewComplexMatrix(0, 2*Middle, 3)
-	s.Layer2Bias = recurrent.NewComplexMatrix(0, 1, 3)
+	s.Layer2Weights = NewMatrix(0, 2*Middle, 3)
+	s.Layer2Bias = NewMatrix(0, 1, 3)
 	for i := 0; i < 2*Middle*3; i++ {
 		r := d.Layer2Weights[i]
 		s.Layer2Weights.Data = append(s.Layer2Weights.Data, complex(rng.NormFloat64()*r.Stddev+r.Mean,
@@ -167,13 +167,13 @@ func Learn() {
 		loss := 0.0
 		for i := 0; i < 150; i++ {
 			fisher := data.Fisher[i]
-			input := recurrent.NewComplexMatrix(0, 4, 1)
+			input := NewMatrix(0, 4, 1)
 			for j, v := range fisher.Measures {
 				input.Data = append(input.Data, complex(v+noise[i][j], 0))
 			}
-			output := recurrent.EverettActivation(recurrent.ComplexAdd(recurrent.ComplexMul(networks[j].Layer1Weights, input),
+			output := EverettActivation(Add(MulT(networks[j].Layer1Weights, input),
 				networks[j].Layer1Bias))
-			output = recurrent.ComplexAdd(recurrent.ComplexMul(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
+			output = Add(MulT(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
 			expected := make([]float32, 3)
 			expected[iris.Labels[fisher.Label]] = 1
 
@@ -335,14 +335,14 @@ func Learn() {
 	correct := 0
 	loss := 0.0
 	for _, fisher := range data.Fisher {
-		input := recurrent.NewComplexMatrix(0, 4, 1)
+		input := NewMatrix(0, 4, 1)
 		for _, v := range fisher.Measures {
 			input.Data = append(input.Data, complex(v, 0))
 		}
 
-		output := recurrent.EverettActivation(recurrent.ComplexAdd(recurrent.ComplexMul(best.Layer1Weights, input),
+		output := EverettActivation(Add(MulT(best.Layer1Weights, input),
 			best.Layer1Bias))
-		output = recurrent.ComplexAdd(recurrent.ComplexMul(best.Layer2Weights, output), best.Layer2Bias)
+		output = Add(MulT(best.Layer2Weights, output), best.Layer2Bias)
 		max, index := float32(0.0), 0
 		for i, value := range output.Data {
 			v := float32(cmplx.Abs(value))

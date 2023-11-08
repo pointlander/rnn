@@ -10,8 +10,9 @@ import (
 	"testing"
 
 	"github.com/pointlander/rnn/discrete"
-	"github.com/pointlander/rnn/quanta"
-	"github.com/pointlander/rnn/recurrent"
+	"github.com/pointlander/rnn/matrix/f32"
+	"github.com/pointlander/rnn/matrix/f64"
+	"github.com/pointlander/rnn/matrix/quantized"
 )
 
 const program = `
@@ -71,46 +72,46 @@ func BenchmarkBF(b *testing.B) {
 func BenchmarkFloat32(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
 	factor := math.Sqrt(2.0 / float64(256))
-	layer := recurrent.NewMatrix32(0, 256, 256)
+	layer := f32.NewMatrix(0, 256, 256)
 	for i := 0; i < 256*256; i++ {
 		layer.Data = append(layer.Data, float32(factor*rng.NormFloat64()))
 	}
-	bias := recurrent.NewMatrix32(0, 1, 256)
+	bias := f32.NewMatrix(0, 1, 256)
 	for i := 0; i < 256; i++ {
 		bias.Data = append(bias.Data, float32(factor*rng.NormFloat64()))
 	}
-	input := recurrent.NewMatrix32(0, 256, 1)
+	input := f32.NewMatrix(0, 256, 1)
 	for i := 0; i < 256; i++ {
 		input.Data = append(input.Data, float32(factor*rng.NormFloat64()))
 	}
 	for i := 0; i < b.N; i++ {
-		recurrent.Step32(recurrent.Add32(recurrent.Mul32(layer, input), bias))
+		f32.Step(f32.Add(f32.MulT(layer, input), bias))
 	}
 }
 
 func BenchmarkFloat64(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
 	factor := math.Sqrt(2.0 / float64(256))
-	layer := recurrent.NewMatrix(0, 256, 256)
+	layer := f64.NewMatrix(0, 256, 256)
 	for i := 0; i < 256*256; i++ {
 		layer.Data = append(layer.Data, factor*rng.NormFloat64())
 	}
-	bias := recurrent.NewMatrix(0, 1, 256)
+	bias := f64.NewMatrix(0, 1, 256)
 	for i := 0; i < 256; i++ {
 		bias.Data = append(bias.Data, factor*rng.NormFloat64())
 	}
-	input := recurrent.NewMatrix(0, 256, 1)
+	input := f64.NewMatrix(0, 256, 1)
 	for i := 0; i < 256; i++ {
 		input.Data = append(input.Data, factor*rng.NormFloat64())
 	}
 	for i := 0; i < b.N; i++ {
-		recurrent.Step(recurrent.Add(recurrent.Mul(layer, input), bias))
+		f64.Step(f64.Add(f64.MulT(layer, input), bias))
 	}
 }
 
 func BenchmarkUint8(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
-	layer := quanta.NewMatrix8(256, 256)
+	layer := quantized.NewMatrix8(256, 256)
 	for i := 0; i < 256*256; i++ {
 		v := -1
 		if rng.Intn(2) == 1 {
@@ -118,7 +119,7 @@ func BenchmarkUint8(b *testing.B) {
 		}
 		layer.Data = append(layer.Data, int8(v))
 	}
-	bias := quanta.NewMatrix8(1, 256)
+	bias := quantized.NewMatrix8(1, 256)
 	for i := 0; i < 256; i++ {
 		v := -1
 		if rng.Intn(2) == 1 {
@@ -126,7 +127,7 @@ func BenchmarkUint8(b *testing.B) {
 		}
 		bias.Data = append(bias.Data, int8(v))
 	}
-	input := quanta.NewMatrix8(256, 1)
+	input := quantized.NewMatrix8(256, 1)
 	for i := 0; i < 256; i++ {
 		v := -1
 		if rng.Intn(2) == 1 {
@@ -135,25 +136,25 @@ func BenchmarkUint8(b *testing.B) {
 		input.Data = append(input.Data, int8(v))
 	}
 	for i := 0; i < b.N; i++ {
-		quanta.Layer8(layer, input, bias)
+		quantized.Layer8(layer, input, bias)
 	}
 }
 
 func BenchmarkUint64(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
-	layer := quanta.NewMatrix(256, 256)
+	layer := quantized.NewMatrix(256, 256)
 	for i := 0; i < 256*256/64; i++ {
 		layer.Data = append(layer.Data, rng.Uint64())
 	}
-	bias := quanta.NewMatrix(1, 256)
+	bias := quantized.NewMatrix(1, 256)
 	for i := 0; i < 256/64; i++ {
 		bias.Data = append(bias.Data, rng.Uint64())
 	}
-	input := quanta.NewMatrix(256, 1)
+	input := quantized.NewMatrix(256, 1)
 	for i := 0; i < 256/64; i++ {
 		input.Data = append(input.Data, rng.Uint64())
 	}
 	for i := 0; i < b.N; i++ {
-		quanta.Layer(layer, input, bias)
+		quantized.Layer(layer, input, bias)
 	}
 }

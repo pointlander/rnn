@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package recurrent
+package quaternion
 
 import (
 	"fmt"
@@ -12,17 +12,17 @@ import (
 	"gonum.org/v1/gonum/num/quat"
 )
 
-// QuatMatrix is a quaternion matrix
-type QuatMatrix struct {
+// Matrix is a quaternion matrix
+type Matrix struct {
 	Cols   int
 	Rows   int
 	Data   []quat.Number
 	States [][]quat.Number
 }
 
-// NewQuatMatrix creates a new quaternion matrix
-func NewQuatMatrix(states, cols, rows int) QuatMatrix {
-	m := QuatMatrix{
+// NewMatrix creates a new quaternion matrix
+func NewMatrix(states, cols, rows int) Matrix {
+	m := Matrix{
 		Cols: cols,
 		Rows: rows,
 		Data: make([]quat.Number, 0, cols*rows),
@@ -36,9 +36,9 @@ func NewQuatMatrix(states, cols, rows int) QuatMatrix {
 	return m
 }
 
-// NewRandQuatMatrix creates a new random quaternion matrix
-func NewRandQuatMatrix(rnd *rand.Rand, states, cols, rows int) QuatMatrix {
-	m := QuatMatrix{
+// NewRandMatrix creates a new random quaternion matrix
+func NewRandQuatMatrix(rnd *rand.Rand, states, cols, rows int) Matrix {
+	m := Matrix{
 		Cols: cols,
 		Rows: rows,
 		Data: make([]quat.Number, 0, cols*rows),
@@ -62,11 +62,11 @@ func NewRandQuatMatrix(rnd *rand.Rand, states, cols, rows int) QuatMatrix {
 }
 
 // Size is the size of the quaternion matrix
-func (m QuatMatrix) Size() int {
+func (m Matrix) Size() int {
 	return m.Cols * m.Rows
 }
 
-func quatDot(X, Y []quat.Number) quat.Number {
+func dot(X, Y []quat.Number) quat.Number {
 	var sum quat.Number
 	for i, x := range X {
 		sum = quat.Add(sum, quat.Mul(x, Y[i]))
@@ -74,13 +74,13 @@ func quatDot(X, Y []quat.Number) quat.Number {
 	return sum
 }
 
-// QuatMul multiplies two quaternion matrices
-func QuatMul(m QuatMatrix, n QuatMatrix) QuatMatrix {
+// MulT multiplies two quaternion matrices and computes the transpose
+func MulT(m Matrix, n Matrix) Matrix {
 	if m.Cols != n.Cols {
 		panic(fmt.Errorf("%d != %d", m.Cols, n.Cols))
 	}
 	columns := m.Cols
-	o := QuatMatrix{
+	o := Matrix{
 		Cols: m.Rows,
 		Rows: n.Rows,
 		Data: make([]quat.Number, 0, m.Rows*n.Rows),
@@ -90,20 +90,20 @@ func QuatMul(m QuatMatrix, n QuatMatrix) QuatMatrix {
 		nn := n.Data[i : i+columns]
 		for j := 0; j < lenm; j += columns {
 			mm := m.Data[j : j+columns]
-			o.Data = append(o.Data, quatDot(mm, nn))
+			o.Data = append(o.Data, dot(mm, nn))
 		}
 	}
 	return o
 }
 
-// QuatAdd adds two quaternion matrices
-func QuatAdd(m QuatMatrix, n QuatMatrix) QuatMatrix {
+// Add adds two quaternion matrices
+func Add(m Matrix, n Matrix) Matrix {
 	lena, lenb := len(m.Data), len(n.Data)
 	if lena%lenb != 0 {
 		panic(fmt.Errorf("%d %% %d != 0", lena, lenb))
 	}
 
-	o := QuatMatrix{
+	o := Matrix{
 		Cols: m.Cols,
 		Rows: m.Rows,
 		Data: make([]quat.Number, 0, m.Cols*m.Rows),
@@ -114,9 +114,9 @@ func QuatAdd(m QuatMatrix, n QuatMatrix) QuatMatrix {
 	return o
 }
 
-// QuatActivation is a quaternion activation function
-func QuatActivation(m QuatMatrix) QuatMatrix {
-	o := QuatMatrix{
+// Activation is a quaternion activation function
+func Activation(m Matrix) Matrix {
+	o := Matrix{
 		Cols: m.Cols,
 		Rows: m.Rows,
 		Data: make([]quat.Number, 0, m.Cols*m.Rows),
@@ -148,9 +148,9 @@ func QuatActivation(m QuatMatrix) QuatMatrix {
 	return o
 }
 
-// QuatEverettActivation is the everett quaternion activation function
-func QuatEverettActivation(m QuatMatrix) QuatMatrix {
-	o := QuatMatrix{
+// EverettActivation is the everett quaternion activation function
+func EverettActivation(m Matrix) Matrix {
+	o := Matrix{
 		Cols: 2 * m.Cols,
 		Rows: m.Rows,
 		Data: make([]quat.Number, 0, 2*m.Cols*m.Rows),

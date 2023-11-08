@@ -13,6 +13,8 @@ import (
 	"os"
 	"runtime"
 	"sort"
+
+	. "github.com/pointlander/rnn/matrix/f32"
 )
 
 const (
@@ -82,22 +84,22 @@ func NewDistribution(rng *rand.Rand) Distribution {
 
 // Network is a neural network
 type Network struct {
-	EncoderState   Matrix32
-	EncoderWeights Matrix32
-	EncoderBias    Matrix32
-	DecoderState   Matrix32
-	DecoderWeights Matrix32
-	DecoderBias    Matrix32
+	EncoderState   Matrix
+	EncoderWeights Matrix
+	EncoderBias    Matrix
+	DecoderState   Matrix
+	DecoderWeights Matrix
+	DecoderBias    Matrix
 	Loss           float64
 }
 
 // Sample samples a network from the distribution
 func (d Distribution) Sample(rng *rand.Rand) Network {
 	var n Network
-	n.EncoderState = NewMatrix32(0, EncoderCols, 1)
+	n.EncoderState = NewMatrix(0, EncoderCols, 1)
 	n.EncoderState.Data = n.EncoderState.Data[:EncoderCols]
-	n.EncoderWeights = NewMatrix32(0, EncoderCols, EncoderRows)
-	n.EncoderBias = NewMatrix32(0, 1, EncoderRows)
+	n.EncoderWeights = NewMatrix(0, EncoderCols, EncoderRows)
+	n.EncoderBias = NewMatrix(0, 1, EncoderRows)
 	for i := 0; i < EncoderSize; i++ {
 		r := d.EncoderWeights[i]
 		n.EncoderWeights.Data = append(n.EncoderWeights.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
@@ -107,10 +109,10 @@ func (d Distribution) Sample(rng *rand.Rand) Network {
 		n.EncoderBias.Data = append(n.EncoderBias.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
 	}
 
-	n.DecoderState = NewMatrix32(0, DecoderCols, 1)
+	n.DecoderState = NewMatrix(0, DecoderCols, 1)
 	n.DecoderState.Data = n.DecoderState.Data[:DecoderCols]
-	n.DecoderWeights = NewMatrix32(0, DecoderCols, DecoderRows)
-	n.DecoderBias = NewMatrix32(0, 1, DecoderRows)
+	n.DecoderWeights = NewMatrix(0, DecoderCols, DecoderRows)
+	n.DecoderBias = NewMatrix(0, 1, DecoderRows)
 	for i := 0; i < DecoderSize; i++ {
 		r := d.DecoderWeights[i]
 		n.DecoderWeights.Data = append(n.DecoderWeights.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
@@ -130,14 +132,14 @@ func (n *Network) Inference(data []byte) {
 			n.EncoderState.Data[Offset+i] = -1
 		}
 		n.EncoderState.Data[Offset+int(symbol)] = 1
-		output := Step32(Add32(Mul32(n.EncoderWeights, n.EncoderState), n.EncoderBias))
+		output := Step(Add(MulT(n.EncoderWeights, n.EncoderState), n.EncoderBias))
 		copy(n.EncoderState.Data[:Offset], output.Data)
 	}
 	copy(n.DecoderState.Data, n.EncoderState.Data[:Offset])
 	loss := 0.0
 	for _, symbol := range data {
-		direct := Add32(Mul32(n.DecoderWeights, n.DecoderState), n.DecoderBias)
-		output := Step32(direct)
+		direct := Add(MulT(n.DecoderWeights, n.DecoderState), n.DecoderBias)
+		output := Step(direct)
 		copy(n.DecoderState.Data, output.Data[:Offset])
 		expected := make([]float64, 256)
 		expected[int(symbol)] = 1

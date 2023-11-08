@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+
+	. "github.com/pointlander/rnn/matrix/quantized"
 )
 
 // Learn learns a model

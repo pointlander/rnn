@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package recurrent
+package f64
 
 import (
 	"fmt"
@@ -73,8 +73,8 @@ func (m Matrix) Size() int {
 	return m.Cols * m.Rows
 }
 
-// Mul multiplies two matrices
-func Mul(m Matrix, n Matrix) Matrix {
+// Mul multiplies two matrices and computes the transpose
+func MulT(m Matrix, n Matrix) Matrix {
 	if m.Cols != n.Cols {
 		panic(fmt.Errorf("%d != %d", m.Cols, n.Cols))
 	}
@@ -349,188 +349,4 @@ func SelfEntropy(Q, K, V Matrix) []float64 {
 		results = append(results, entropy)
 	}
 	return results
-}
-
-// Matrix32 is a float32 matrix
-type Matrix32 struct {
-	Cols   int
-	Rows   int
-	Data   []float32
-	States [][]float32
-}
-
-// NewMatrix32 creates a new float32 matrix
-func NewMatrix32(states, cols, rows int) Matrix32 {
-	m := Matrix32{
-		Cols: cols,
-		Rows: rows,
-		Data: make([]float32, 0, cols*rows),
-	}
-	if states > 0 {
-		m.States = make([][]float32, states)
-		for i := range m.States {
-			m.States[i] = make([]float32, cols*rows)
-		}
-	}
-	return m
-}
-
-// Size is the size of the float32 matrix
-func (m Matrix32) Size() int {
-	return m.Cols * m.Rows
-}
-
-// Mul multiplies two matrices
-func Mul32(m Matrix32, n Matrix32) Matrix32 {
-	if m.Cols != n.Cols {
-		panic(fmt.Errorf("%d != %d", m.Cols, n.Cols))
-	}
-	columns := m.Cols
-	o := Matrix32{
-		Cols: m.Rows,
-		Rows: n.Rows,
-		Data: make([]float32, 0, m.Rows*n.Rows),
-	}
-	lenn, lenm := len(n.Data), len(m.Data)
-	for i := 0; i < lenn; i += columns {
-		nn := n.Data[i : i+columns]
-		for j := 0; j < lenm; j += columns {
-			mm := m.Data[j : j+columns]
-			o.Data = append(o.Data, dot32(mm, nn))
-		}
-	}
-	return o
-}
-
-// Add32 adds two float32 matrices
-func Add32(m Matrix32, n Matrix32) Matrix32 {
-	lena, lenb := len(m.Data), len(n.Data)
-	if lena%lenb != 0 {
-		panic(fmt.Errorf("%d %% %d != 0", lena, lenb))
-	}
-
-	o := Matrix32{
-		Cols: m.Cols,
-		Rows: m.Rows,
-		Data: make([]float32, 0, m.Cols*m.Rows),
-	}
-	for i, value := range m.Data {
-		o.Data = append(o.Data, value+n.Data[i%lenb])
-	}
-	return o
-}
-
-// Sigmoid32 computes the sigmoid of a matrix
-func Sigmoid32(m Matrix32) Matrix32 {
-	o := Matrix32{
-		Cols: m.Cols,
-		Rows: m.Rows,
-		Data: make([]float32, 0, m.Cols*m.Rows),
-	}
-	for _, value := range m.Data {
-		o.Data = append(o.Data, float32(1/(1+math.Exp(-float64(value)))))
-	}
-	return o
-}
-
-// Step32 computes the step function of a float32 matrix
-func Step32(m Matrix32) Matrix32 {
-	o := Matrix32{
-		Cols: m.Cols,
-		Rows: m.Rows,
-		Data: make([]float32, 0, m.Cols*m.Rows),
-	}
-	for _, value := range m.Data {
-		if value > 0 {
-			value = 1
-		} else {
-			value = -1
-		}
-		o.Data = append(o.Data, value)
-	}
-	return o
-}
-
-// T32 tramsposes a matrix
-func T32(m Matrix32) Matrix32 {
-	o := Matrix32{
-		Cols: m.Rows,
-		Rows: m.Cols,
-		Data: make([]float32, 0, m.Cols*m.Rows),
-	}
-	for i := 0; i < m.Cols; i++ {
-		for j := 0; j < m.Rows; j++ {
-			o.Data = append(o.Data, m.Data[j*m.Cols+i])
-		}
-	}
-	return o
-}
-
-// Normalize32 normalizes a matrix to the unit vector
-func Normalize32(m Matrix32) Matrix32 {
-	size, width := len(m.Data), m.Cols
-	o := Matrix32{
-		Cols: m.Cols,
-		Rows: m.Rows,
-		Data: make([]float32, 0, m.Cols*m.Rows),
-	}
-	for i := 0; i < size; i += width {
-		sum := float32(0.0)
-		for _, ax := range m.Data[i : i+width] {
-			sum += ax * ax
-		}
-		length := float32(math.Sqrt(float64(sum)))
-		if sum == 0 {
-			length = 1
-		}
-		for _, ax := range m.Data[i : i+width] {
-			o.Data = append(o.Data, ax/length)
-		}
-	}
-	return o
-}
-
-func softmax32(values []float32) {
-	max := float32(0.0)
-	for _, v := range values {
-		if v > max {
-			max = v
-		}
-	}
-	s := max * S
-	sum := float32(0.0)
-	for j, value := range values {
-		values[j] = float32(math.Exp(float64(value - s)))
-		sum += values[j]
-	}
-	for j, value := range values {
-		values[j] = value / sum
-	}
-}
-
-// SelfAttention32 computes the self attention of Q, K, V
-func SelfAttention32(Q, K, V Matrix32) Matrix32 {
-	o := Matrix32{
-		Cols: Q.Cols,
-		Rows: Q.Rows,
-		Data: make([]float32, 0, Q.Cols*Q.Rows),
-	}
-	outputs, values := make([]float32, V.Cols), make([]float32, K.Rows)
-	V = T32(V)
-	for i := 0; i < K.Rows; i++ {
-		K := K.Data[i*K.Cols : (i+1)*K.Cols]
-		for j := 0; j < Q.Rows; j++ {
-			Q := Q.Data[j*Q.Cols : (j+1)*Q.Cols]
-			values[j] = dot32(K, Q)
-		}
-		softmax32(values)
-
-		for j := 0; j < V.Rows; j++ {
-			V := V.Data[j*V.Cols : (j+1)*V.Cols]
-			outputs[j] = dot32(values, V)
-		}
-		softmax32(outputs)
-		o.Data = append(o.Data, outputs...)
-	}
-	return o
 }
