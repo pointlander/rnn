@@ -54,8 +54,8 @@ func NewQuatDistribution(rng *rand.Rand) QuatDistribution {
 	//factor := math.Sqrt(2.0 / float64(4))
 	for i := 0; i < 4*QuatMiddle; i++ {
 		layer1Weights = append(layer1Weights, QuatRandom{
-			Mean:   [4]float64{0, 0, 0, 0}, //factor * rng.NormFloat64(),
-			Stddev: [4]float64{1, 1, 1, 1}, //factor * rng.NormFloat64(),
+			Mean:   [4]float64{0, 0, 0, 0},         //factor * rng.NormFloat64(),
+			Stddev: [4]float64{.25, .25, .25, .25}, //factor * rng.NormFloat64(),
 		})
 	}
 	layer1Bias := make([]QuatRandom, 0, QuatMiddle)
@@ -69,8 +69,8 @@ func NewQuatDistribution(rng *rand.Rand) QuatDistribution {
 	layer2Weights := make([]QuatRandom, 0, 2*QuatMiddle*3)
 	for i := 0; i < 2*QuatMiddle*3; i++ {
 		layer2Weights = append(layer2Weights, QuatRandom{
-			Mean:   [4]float64{0, 0, 0, 0}, //factor * rng.NormFloat64(),
-			Stddev: [4]float64{1, 1, 1, 1}, //factor * rng.NormFloat64(),
+			Mean:   [4]float64{0, 0, 0, 0},         //factor * rng.NormFloat64(),
+			Stddev: [4]float64{.25, .25, .25, .25}, //factor * rng.NormFloat64(),
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(3))
