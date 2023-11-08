@@ -54,39 +54,39 @@ func NewDistribution(rng *rand.Rand) Distribution {
 	//factor := math.Sqrt(2.0 / float64(4))
 	for i := 0; i < 4*Middle; i++ {
 		layer1Weights = append(layer1Weights, Random{
-			Mean:    0, //factor * rng.NormFloat64(),
-			Stddev:  1, //factor * rng.NormFloat64(),
+			Mean:    0,  //factor * rng.NormFloat64(),
+			Stddev:  .5, //factor * rng.NormFloat64(),
 			IMean:   0,
-			IStddev: 1,
+			IStddev: .5,
 		})
 	}
 	layer1Bias := make([]Random, 0, Middle)
 	for i := 0; i < Middle; i++ {
 		layer1Bias = append(layer1Bias, Random{
-			Mean:    0, //factor * rng.NormFloat64(),
-			Stddev:  1, //factor * rng.NormFloat64(),
+			Mean:    0,  //factor * rng.NormFloat64(),
+			Stddev:  .5, //factor * rng.NormFloat64(),
 			IMean:   0,
-			IStddev: 1,
+			IStddev: .5,
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(Middle))
 	layer2Weights := make([]Random, 0, 2*Middle*3)
 	for i := 0; i < 2*Middle*3; i++ {
 		layer2Weights = append(layer2Weights, Random{
-			Mean:    0, //factor * rng.NormFloat64(),
-			Stddev:  1, //factor * rng.NormFloat64(),
+			Mean:    0,  //factor * rng.NormFloat64(),
+			Stddev:  .5, //factor * rng.NormFloat64(),
 			IMean:   0,
-			IStddev: 1,
+			IStddev: .5,
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(3))
 	layer2Bias := make([]Random, 0, 3)
 	for i := 0; i < 3; i++ {
 		layer2Bias = append(layer2Bias, Random{
-			Mean:    0, //factor * rng.NormFloat64(),
-			Stddev:  1, //factor * rng.NormFloat64(),
+			Mean:    0,  //factor * rng.NormFloat64(),
+			Stddev:  .5, //factor * rng.NormFloat64(),
 			IMean:   0,
-			IStddev: 1,
+			IStddev: .5,
 		})
 	}
 	return Distribution{
@@ -158,7 +158,7 @@ func Learn() {
 	for i := range noise {
 		s := make([]float64, 4)
 		for j := range s {
-			s[j] = rng.NormFloat64() * .0001
+			s[j] = rng.NormFloat64() * .01
 		}
 		noise[i] = s
 	}
@@ -185,7 +185,7 @@ func Learn() {
 		networks[j].Loss = loss
 		done <- true
 	}
-	for i := 0; i < 2*1024; i++ {
+	for i := 0; i < 4*1024; i++ {
 		for j := range networks {
 			networks[j] = distribution.Sample(rng)
 		}
@@ -225,6 +225,11 @@ func Learn() {
 			stddev = math.Sqrt(stddev)
 			if stddev < min {
 				min, index = stddev, j
+			}
+		}
+		for _, s := range noise {
+			for j := range s {
+				s[j] = rng.NormFloat64() * .01
 			}
 		}
 		if networks[index].Loss < minLoss {
@@ -325,12 +330,6 @@ func Learn() {
 			next.Layer2Bias[j].IStddev = math.Sqrt(next.Layer2Bias[j].IStddev)
 		}
 		distribution = next
-
-		for _, s := range noise {
-			for j := range s {
-				s[j] = rng.NormFloat64() * .0001
-			}
-		}
 	}
 
 	correct := 0
