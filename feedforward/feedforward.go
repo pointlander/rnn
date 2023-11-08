@@ -154,14 +154,22 @@ func Learn() {
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
 	best := Sample{}
+	noise := make([][]float64, 150)
+	for i := range noise {
+		s := make([]float64, 4)
+		for j := range s {
+			s[j] = rng.NormFloat64() * .0001
+		}
+		noise[i] = s
+	}
 	inference := func(seed int64, j int) {
 		//rng := rand.New(rand.NewSource(seed))
 		loss := 0.0
 		for i := 0; i < 150; i++ {
 			fisher := data.Fisher[i]
 			input := recurrent.NewComplexMatrix(0, 4, 1)
-			for _, v := range fisher.Measures {
-				input.Data = append(input.Data, complex(v, 0))
+			for j, v := range fisher.Measures {
+				input.Data = append(input.Data, complex(v+noise[i][j], 0))
 			}
 			output := recurrent.EverettActivation(recurrent.ComplexAdd(recurrent.ComplexMul(networks[j].Layer1Weights, input),
 				networks[j].Layer1Bias))
@@ -317,6 +325,12 @@ func Learn() {
 			next.Layer2Bias[j].IStddev = math.Sqrt(next.Layer2Bias[j].IStddev)
 		}
 		distribution = next
+
+		for _, s := range noise {
+			for j := range s {
+				s[j] = rng.NormFloat64() * .0001
+			}
+		}
 	}
 
 	correct := 0
