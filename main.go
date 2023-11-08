@@ -30,5 +30,6 @@ func main() {
 		return
 	}
 
-	feedforward.Learn()
+	//feedforward.Learn()
+	feedforward.QuatLearn()
 }
