@@ -17,6 +17,8 @@ var (
 	FlagRecurrent = flag.Bool("recurrent", false, "recurrent mode")
 	// FlagDiscrete discrete mode
 	FlagDiscrete = flag.Bool("discrete", false, "discrete mode")
+	// FlagForward feedforward mode
+	FlagForward = flag.Bool("forward", false, "feedforward mode")
 )
 
 func main() {
@@ -28,8 +30,10 @@ func main() {
 	} else if *FlagDiscrete {
 		discrete.Learn()
 		return
+	} else if *FlagForward {
+		feedforward.Learn()
+		return
 	}
 
-	//feedforward.Learn()
 	feedforward.QuatLearn()
 }
