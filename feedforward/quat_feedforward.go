@@ -179,7 +179,7 @@ func QuatLearn() {
 			output := recurrent.QuatEverettActivation(recurrent.QuatAdd(recurrent.QuatMul(networks[j].Layer1Weights, input),
 				networks[j].Layer1Bias))
 			output = recurrent.QuatAdd(recurrent.QuatMul(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
-			max, index := 0.0, 0
+			/*max, index := 0.0, 0
 			penalty := 0.0
 			for i, v := range output.Data {
 				a := quat.Abs(v)
@@ -192,6 +192,14 @@ func QuatLearn() {
 			}
 			if index != iris.Labels[fisher.Label] {
 				loss += penalty
+			}*/
+
+			expected := make([]float32, 3)
+			expected[iris.Labels[fisher.Label]] = 1
+
+			for i, v := range output.Data {
+				diff := float64(float32(quat.Abs(v)) - expected[i])
+				loss += diff * diff
 			}
 		}
 		networks[j].Loss = loss
