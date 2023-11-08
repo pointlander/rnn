@@ -21,6 +21,8 @@ const (
 	QuatWindow = 16
 	// QuatMiddle is the width of the middle layer
 	QuatMiddle = 16
+	// QuatCount is the number of samples
+	QuatCount = 256
 )
 
 // QuatRandom is a random variable
@@ -52,31 +54,31 @@ func NewQuatDistribution(rng *rand.Rand) QuatDistribution {
 	//factor := math.Sqrt(2.0 / float64(4))
 	for i := 0; i < 4*QuatMiddle; i++ {
 		layer1Weights = append(layer1Weights, QuatRandom{
-			Mean:   [4]float64{0, 0, 0, 0},             //factor * rng.NormFloat64(),
-			Stddev: [4]float64{0.25, 0.25, 0.25, 0.25}, //factor * rng.NormFloat64(),
+			Mean:   [4]float64{0, 0, 0, 0}, //factor * rng.NormFloat64(),
+			Stddev: [4]float64{1, 1, 1, 1}, //factor * rng.NormFloat64(),
 		})
 	}
 	layer1Bias := make([]QuatRandom, 0, QuatMiddle)
 	for i := 0; i < QuatMiddle; i++ {
 		layer1Bias = append(layer1Bias, QuatRandom{
-			Mean:   [4]float64{0, 0, 0, 0},             //factor * rng.NormFloat64(),
-			Stddev: [4]float64{0.25, 0.25, 0.25, 0.25}, //factor * rng.NormFloat64(),
+			Mean:   [4]float64{0, 0, 0, 0}, //factor * rng.NormFloat64(),
+			Stddev: [4]float64{1, 1, 1, 1}, //factor * rng.NormFloat64(),
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(Middle))
 	layer2Weights := make([]QuatRandom, 0, 2*QuatMiddle*3)
 	for i := 0; i < 2*QuatMiddle*3; i++ {
 		layer2Weights = append(layer2Weights, QuatRandom{
-			Mean:   [4]float64{0, 0, 0, 0},             //factor * rng.NormFloat64(),
-			Stddev: [4]float64{0.25, 0.25, 0.25, 0.25}, //factor * rng.NormFloat64(),
+			Mean:   [4]float64{0, 0, 0, 0}, //factor * rng.NormFloat64(),
+			Stddev: [4]float64{1, 1, 1, 1}, //factor * rng.NormFloat64(),
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(3))
 	layer2Bias := make([]QuatRandom, 0, 3)
 	for i := 0; i < 3; i++ {
 		layer2Bias = append(layer2Bias, QuatRandom{
-			Mean:   [4]float64{0, 0, 0, 0},             //factor * rng.NormFloat64(),
-			Stddev: [4]float64{0.25, 0.25, 0.25, 0.25}, //factor * rng.NormFloat64(),
+			Mean:   [4]float64{0, 0, 0, 0}, //factor * rng.NormFloat64(),
+			Stddev: [4]float64{1, 1, 1, 1}, //factor * rng.NormFloat64(),
 		})
 	}
 	return QuatDistribution{
@@ -155,7 +157,7 @@ func QuatLearn() {
 	}
 
 	distribution := NewQuatDistribution(rng)
-	networks := make([]QuatSample, 150)
+	networks := make([]QuatSample, QuatCount)
 	minLoss := math.MaxFloat64
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
@@ -177,12 +179,19 @@ func QuatLearn() {
 			output := recurrent.QuatEverettActivation(recurrent.QuatAdd(recurrent.QuatMul(networks[j].Layer1Weights, input),
 				networks[j].Layer1Bias))
 			output = recurrent.QuatAdd(recurrent.QuatMul(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
-			expected := make([]float32, 3)
-			expected[iris.Labels[fisher.Label]] = 1
-
+			max, index := 0.0, 0
+			penalty := 0.0
 			for i, v := range output.Data {
-				diff := float64(float32(quat.Abs(v)) - expected[i])
-				loss += diff * diff
+				a := quat.Abs(v)
+				if a > max {
+					max, index = a, i
+				}
+				if iris.Labels[fisher.Label] != i {
+					penalty += a
+				}
+			}
+			if index != iris.Labels[fisher.Label] {
+				loss += penalty
 			}
 		}
 		networks[j].Loss = loss
@@ -213,7 +222,7 @@ func QuatLearn() {
 			return networks[i].Loss < networks[j].Loss
 		})
 		min, index := math.MaxFloat64, 0
-		for j := 0; j < 150-QuatWindow; j++ {
+		for j := 0; j < QuatCount-QuatWindow; j++ {
 			mean := 0.0
 			for k := 0; k < QuatWindow; k++ {
 				mean += networks[j+k].Loss
