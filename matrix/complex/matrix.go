@@ -157,3 +157,28 @@ func EverettActivation(m Matrix) Matrix {
 	}
 	return o
 }
+
+// TaylorSoftmax is the taylor softmax
+// https://arxiv.org/abs/1511.05042
+func TaylorSoftmax(m Matrix) Matrix {
+	o := Matrix{
+		Cols: m.Cols,
+		Rows: m.Rows,
+		Data: make([]complex128, 0, m.Cols*m.Rows),
+	}
+	var sum complex128
+	columns, lenm := m.Cols, len(m.Data)
+	for i := 0; i < lenm; i += columns {
+		nn := m.Data[i : i+columns]
+		for _, v := range nn {
+			sum += 1 + v + v*v/2
+		}
+	}
+	for i := 0; i < lenm; i += columns {
+		nn := m.Data[i : i+columns]
+		for _, v := range nn {
+			o.Data = append(o.Data, (1+v+v*v/2)/sum)
+		}
+	}
+	return o
+}

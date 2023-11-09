@@ -20,7 +20,7 @@ const (
 	// Window is the distribution window
 	Window = 16
 	// Middle is the width of the middle layer
-	Middle = 8
+	Middle = 16
 )
 
 // Random is a random variable
@@ -158,7 +158,7 @@ func Learn() {
 	for i := range noise {
 		s := make([]float64, 4)
 		for j := range s {
-			s[j] = rng.NormFloat64() * .01
+			s[j] = rng.NormFloat64() * .1
 		}
 		noise[i] = s
 	}
@@ -173,7 +173,7 @@ func Learn() {
 			}
 			output := EverettActivation(Add(MulT(networks[j].Layer1Weights, input),
 				networks[j].Layer1Bias))
-			output = Add(MulT(networks[j].Layer2Weights, output), networks[j].Layer2Bias)
+			output = TaylorSoftmax(Add(MulT(networks[j].Layer2Weights, output), networks[j].Layer2Bias))
 			expected := make([]float32, 3)
 			expected[iris.Labels[fisher.Label]] = 1
 
@@ -229,7 +229,7 @@ func Learn() {
 		}
 		for _, s := range noise {
 			for j := range s {
-				s[j] = rng.NormFloat64() * .01
+				s[j] = rng.NormFloat64() * .1
 			}
 		}
 		if networks[index].Loss < minLoss {
@@ -342,7 +342,7 @@ func Learn() {
 
 		output := EverettActivation(Add(MulT(best.Layer1Weights, input),
 			best.Layer1Bias))
-		output = Add(MulT(best.Layer2Weights, output), best.Layer2Bias)
+		output = TaylorSoftmax(Add(MulT(best.Layer2Weights, output), best.Layer2Bias))
 		max, index := float32(0.0), 0
 		for i, value := range output.Data {
 			v := float32(cmplx.Abs(value))
