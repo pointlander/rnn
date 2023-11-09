@@ -58,8 +58,8 @@ func NewDistribution(rng *rand.Rand) Distribution {
 	layer1Bias := make([]Random, 0, Middle)
 	for i := 0; i < Middle; i++ {
 		layer1Bias = append(layer1Bias, Random{
-			Mean:   0, //factor * rng.NormFloat64(),
-			Stddev: 1, //factor * rng.NormFloat64(),
+			Mean:   0,  //factor * rng.NormFloat64(),
+			Stddev: .1, //factor * rng.NormFloat64(),
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(Middle))
@@ -74,8 +74,8 @@ func NewDistribution(rng *rand.Rand) Distribution {
 	layer2Bias := make([]Random, 0, 3)
 	for i := 0; i < 3; i++ {
 		layer2Bias = append(layer2Bias, Random{
-			Mean:   0, //factor * rng.NormFloat64(),
-			Stddev: 1, //factor * rng.NormFloat64(),
+			Mean:   0,  //factor * rng.NormFloat64(),
+			Stddev: .1, //factor * rng.NormFloat64(),
 		})
 	}
 	return Distribution{
@@ -214,12 +214,12 @@ func Learn() {
 		}
 		for _, s := range noise {
 			for j := range s {
-				s[j] = rng.NormFloat64() * .1
+				s[j] = rng.NormFloat64() / float64(i)
 			}
 		}
-		if networks[index].Loss < minLoss {
-			best = networks[index]
-			minLoss = networks[index].Loss
+		if networks[index+Window].Loss < minLoss {
+			best = networks[index+Window]
+			minLoss = networks[index+Window].Loss
 		} else {
 			continue
 		}
