@@ -12,7 +12,8 @@ import (
 	"github.com/pointlander/rnn/discrete"
 	"github.com/pointlander/rnn/matrix/f32"
 	"github.com/pointlander/rnn/matrix/f64"
-	"github.com/pointlander/rnn/matrix/quantized"
+	"github.com/pointlander/rnn/matrix/i8"
+	"github.com/pointlander/rnn/matrix/u64"
 )
 
 const program = `
@@ -111,7 +112,7 @@ func BenchmarkFloat64(b *testing.B) {
 
 func BenchmarkUint8(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
-	layer := quantized.NewMatrix8(256, 256)
+	layer := i8.NewMatrix(256, 256)
 	for i := 0; i < 256*256; i++ {
 		v := -1
 		if rng.Intn(2) == 1 {
@@ -119,7 +120,7 @@ func BenchmarkUint8(b *testing.B) {
 		}
 		layer.Data = append(layer.Data, int8(v))
 	}
-	bias := quantized.NewMatrix8(1, 256)
+	bias := i8.NewMatrix(1, 256)
 	for i := 0; i < 256; i++ {
 		v := -1
 		if rng.Intn(2) == 1 {
@@ -127,7 +128,7 @@ func BenchmarkUint8(b *testing.B) {
 		}
 		bias.Data = append(bias.Data, int8(v))
 	}
-	input := quantized.NewMatrix8(256, 1)
+	input := i8.NewMatrix(256, 1)
 	for i := 0; i < 256; i++ {
 		v := -1
 		if rng.Intn(2) == 1 {
@@ -136,25 +137,25 @@ func BenchmarkUint8(b *testing.B) {
 		input.Data = append(input.Data, int8(v))
 	}
 	for i := 0; i < b.N; i++ {
-		quantized.Layer8(layer, input, bias)
+		i8.Layer(layer, input, bias)
 	}
 }
 
 func BenchmarkUint64(b *testing.B) {
 	rng := rand.New(rand.NewSource(1))
-	layer := quantized.NewMatrix(256, 256)
+	layer := u64.NewMatrix(256, 256)
 	for i := 0; i < 256*256/64; i++ {
 		layer.Data = append(layer.Data, rng.Uint64())
 	}
-	bias := quantized.NewMatrix(1, 256)
+	bias := u64.NewMatrix(1, 256)
 	for i := 0; i < 256/64; i++ {
 		bias.Data = append(bias.Data, rng.Uint64())
 	}
-	input := quantized.NewMatrix(256, 1)
+	input := u64.NewMatrix(256, 1)
 	for i := 0; i < 256/64; i++ {
 		input.Data = append(input.Data, rng.Uint64())
 	}
 	for i := 0; i < b.N; i++ {
-		quantized.Layer(layer, input, bias)
+		u64.Layer(layer, input, bias)
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"math/rand"
 	"time"
 
-	. "github.com/pointlander/rnn/matrix/quantized"
+	. "github.com/pointlander/rnn/matrix/u64"
 )
 
 // Learn learns a model
