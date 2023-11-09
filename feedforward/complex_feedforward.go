@@ -23,24 +23,24 @@ const (
 	Middle = 16
 )
 
-// Random is a random variable
-type Random struct {
+// ComplexRandom is a random variable
+type ComplexRandom struct {
 	Mean    float64
 	Stddev  float64
 	IMean   float64
 	IStddev float64
 }
 
-// Distribution is a distribution of a neural network
-type Distribution struct {
-	Layer1Weights []Random
-	Layer1Bias    []Random
-	Layer2Weights []Random
-	Layer2Bias    []Random
+// ComplexDistribution is a distribution of a neural network
+type ComplexDistribution struct {
+	Layer1Weights []ComplexRandom
+	Layer1Bias    []ComplexRandom
+	Layer2Weights []ComplexRandom
+	Layer2Bias    []ComplexRandom
 }
 
-// Sample is a neural network sample
-type Sample struct {
+// ComplexSample is a neural network sample
+type ComplexSample struct {
 	Layer1Weights Matrix
 	Layer1Bias    Matrix
 	Layer2Weights Matrix
@@ -48,21 +48,21 @@ type Sample struct {
 	Loss          float64
 }
 
-// NewDistrution creates a new distribution of feed forward layers
-func NewDistribution(rng *rand.Rand) Distribution {
-	layer1Weights := make([]Random, 0, 4*Middle)
+// NewComplexDistrution creates a new distribution of feed forward layers
+func NewComplexDistribution(rng *rand.Rand) ComplexDistribution {
+	layer1Weights := make([]ComplexRandom, 0, 4*Middle)
 	//factor := math.Sqrt(2.0 / float64(4))
 	for i := 0; i < 4*Middle; i++ {
-		layer1Weights = append(layer1Weights, Random{
+		layer1Weights = append(layer1Weights, ComplexRandom{
 			Mean:    0,  //factor * rng.NormFloat64(),
 			Stddev:  .5, //factor * rng.NormFloat64(),
 			IMean:   0,
 			IStddev: .5,
 		})
 	}
-	layer1Bias := make([]Random, 0, Middle)
+	layer1Bias := make([]ComplexRandom, 0, Middle)
 	for i := 0; i < Middle; i++ {
-		layer1Bias = append(layer1Bias, Random{
+		layer1Bias = append(layer1Bias, ComplexRandom{
 			Mean:    0,  //factor * rng.NormFloat64(),
 			Stddev:  .5, //factor * rng.NormFloat64(),
 			IMean:   0,
@@ -70,9 +70,9 @@ func NewDistribution(rng *rand.Rand) Distribution {
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(Middle))
-	layer2Weights := make([]Random, 0, 2*Middle*3)
+	layer2Weights := make([]ComplexRandom, 0, 2*Middle*3)
 	for i := 0; i < 2*Middle*3; i++ {
-		layer2Weights = append(layer2Weights, Random{
+		layer2Weights = append(layer2Weights, ComplexRandom{
 			Mean:    0,  //factor * rng.NormFloat64(),
 			Stddev:  .5, //factor * rng.NormFloat64(),
 			IMean:   0,
@@ -80,16 +80,16 @@ func NewDistribution(rng *rand.Rand) Distribution {
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(3))
-	layer2Bias := make([]Random, 0, 3)
+	layer2Bias := make([]ComplexRandom, 0, 3)
 	for i := 0; i < 3; i++ {
-		layer2Bias = append(layer2Bias, Random{
+		layer2Bias = append(layer2Bias, ComplexRandom{
 			Mean:    0,  //factor * rng.NormFloat64(),
 			Stddev:  .5, //factor * rng.NormFloat64(),
 			IMean:   0,
 			IStddev: .5,
 		})
 	}
-	return Distribution{
+	return ComplexDistribution{
 		Layer1Weights: layer1Weights,
 		Layer1Bias:    layer1Bias,
 		Layer2Weights: layer2Weights,
@@ -98,8 +98,8 @@ func NewDistribution(rng *rand.Rand) Distribution {
 }
 
 // Sample returns a sampled feedforward neural network
-func (d Distribution) Sample(rng *rand.Rand) Sample {
-	var s Sample
+func (d ComplexDistribution) Sample(rng *rand.Rand) ComplexSample {
+	var s ComplexSample
 	s.Layer1Weights = NewMatrix(0, 4, Middle)
 	s.Layer1Bias = NewMatrix(0, 1, Middle)
 	for i := 0; i < 4*Middle; i++ {
@@ -148,12 +148,12 @@ func Learn() {
 		}
 	}
 
-	distribution := NewDistribution(rng)
-	networks := make([]Sample, 150)
+	distribution := NewComplexDistribution(rng)
+	networks := make([]ComplexSample, 150)
 	minLoss := math.MaxFloat64
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
-	best := Sample{}
+	best := ComplexSample{}
 	noise := make([][]float64, 150)
 	for i := range noise {
 		s := make([]float64, 4)
@@ -239,11 +239,11 @@ func Learn() {
 			continue
 		}
 		fmt.Println(min, index, networks[index].Loss)
-		next := Distribution{
-			Layer1Weights: make([]Random, len(distribution.Layer1Weights)),
-			Layer1Bias:    make([]Random, len(distribution.Layer1Bias)),
-			Layer2Weights: make([]Random, len(distribution.Layer2Weights)),
-			Layer2Bias:    make([]Random, len(distribution.Layer2Bias)),
+		next := ComplexDistribution{
+			Layer1Weights: make([]ComplexRandom, len(distribution.Layer1Weights)),
+			Layer1Bias:    make([]ComplexRandom, len(distribution.Layer1Bias)),
+			Layer2Weights: make([]ComplexRandom, len(distribution.Layer2Weights)),
+			Layer2Bias:    make([]ComplexRandom, len(distribution.Layer2Bias)),
 		}
 		for j := 0; j < Window; j++ {
 			for k, value := range networks[index+j].Layer1Weights.Data {
