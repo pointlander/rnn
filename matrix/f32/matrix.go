@@ -206,3 +206,48 @@ func SelfAttention(Q, K, V Matrix) Matrix {
 	}
 	return o
 }
+
+// EverettActivation is the everett complex activation function
+func EverettActivation(m Matrix) Matrix {
+	o := Matrix{
+		Cols: 2 * m.Cols,
+		Rows: m.Rows,
+		Data: make([]float32, 0, 2*m.Cols*m.Rows),
+	}
+	for _, value := range m.Data {
+		min, max := value, value
+		if min > 0 {
+			min = 0
+		}
+		if max < 0 {
+			max = 0
+		}
+		o.Data = append(o.Data, min, max)
+	}
+	return o
+}
+
+// TaylorSoftmax is the taylor softmax
+// https://arxiv.org/abs/1511.05042
+func TaylorSoftmax(m Matrix) Matrix {
+	o := Matrix{
+		Cols: m.Cols,
+		Rows: m.Rows,
+		Data: make([]float32, 0, m.Cols*m.Rows),
+	}
+	var sum float32
+	columns, lenm := m.Cols, len(m.Data)
+	for i := 0; i < lenm; i += columns {
+		nn := m.Data[i : i+columns]
+		for _, v := range nn {
+			sum += 1 + v + v*v/2
+		}
+	}
+	for i := 0; i < lenm; i += columns {
+		nn := m.Data[i : i+columns]
+		for _, v := range nn {
+			o.Data = append(o.Data, (1+v+v*v/2)/sum)
+		}
+	}
+	return o
+}

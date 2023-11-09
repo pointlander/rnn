@@ -19,6 +19,8 @@ var (
 	FlagDiscrete = flag.Bool("discrete", false, "discrete mode")
 	// FlagForward feedforward mode
 	FlagForward = flag.Bool("forward", false, "feedforward mode")
+	// FlagComplexForward feedforward mode
+	FlagComplexForward = flag.Bool("complexforward", false, "complex feedforward mode")
 )
 
 func main() {
@@ -32,6 +34,9 @@ func main() {
 		return
 	} else if *FlagForward {
 		feedforward.Learn()
+		return
+	} else if *FlagComplexForward {
+		feedforward.ComplexLearn()
 		return
 	}
 

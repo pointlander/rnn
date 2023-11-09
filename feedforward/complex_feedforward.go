@@ -17,10 +17,10 @@ import (
 )
 
 const (
-	// Window is the distribution window
-	Window = 16
-	// Middle is the width of the middle layer
-	Middle = 16
+	// ComplexWindow is the distribution window
+	ComplexWindow = 16
+	// ComplexMiddle is the width of the middle layer
+	ComplexMiddle = 16
 )
 
 // ComplexRandom is a random variable
@@ -50,9 +50,9 @@ type ComplexSample struct {
 
 // NewComplexDistrution creates a new distribution of feed forward layers
 func NewComplexDistribution(rng *rand.Rand) ComplexDistribution {
-	layer1Weights := make([]ComplexRandom, 0, 4*Middle)
+	layer1Weights := make([]ComplexRandom, 0, 4*ComplexMiddle)
 	//factor := math.Sqrt(2.0 / float64(4))
-	for i := 0; i < 4*Middle; i++ {
+	for i := 0; i < 4*ComplexMiddle; i++ {
 		layer1Weights = append(layer1Weights, ComplexRandom{
 			Mean:    0,  //factor * rng.NormFloat64(),
 			Stddev:  .5, //factor * rng.NormFloat64(),
@@ -60,8 +60,8 @@ func NewComplexDistribution(rng *rand.Rand) ComplexDistribution {
 			IStddev: .5,
 		})
 	}
-	layer1Bias := make([]ComplexRandom, 0, Middle)
-	for i := 0; i < Middle; i++ {
+	layer1Bias := make([]ComplexRandom, 0, ComplexMiddle)
+	for i := 0; i < ComplexMiddle; i++ {
 		layer1Bias = append(layer1Bias, ComplexRandom{
 			Mean:    0,  //factor * rng.NormFloat64(),
 			Stddev:  .5, //factor * rng.NormFloat64(),
@@ -70,8 +70,8 @@ func NewComplexDistribution(rng *rand.Rand) ComplexDistribution {
 		})
 	}
 	//factor = math.Sqrt(2.0 / float64(Middle))
-	layer2Weights := make([]ComplexRandom, 0, 2*Middle*3)
-	for i := 0; i < 2*Middle*3; i++ {
+	layer2Weights := make([]ComplexRandom, 0, 2*ComplexMiddle*3)
+	for i := 0; i < 2*ComplexMiddle*3; i++ {
 		layer2Weights = append(layer2Weights, ComplexRandom{
 			Mean:    0,  //factor * rng.NormFloat64(),
 			Stddev:  .5, //factor * rng.NormFloat64(),
@@ -100,22 +100,22 @@ func NewComplexDistribution(rng *rand.Rand) ComplexDistribution {
 // Sample returns a sampled feedforward neural network
 func (d ComplexDistribution) Sample(rng *rand.Rand) ComplexSample {
 	var s ComplexSample
-	s.Layer1Weights = NewMatrix(0, 4, Middle)
-	s.Layer1Bias = NewMatrix(0, 1, Middle)
-	for i := 0; i < 4*Middle; i++ {
+	s.Layer1Weights = NewMatrix(0, 4, ComplexMiddle)
+	s.Layer1Bias = NewMatrix(0, 1, ComplexMiddle)
+	for i := 0; i < 4*ComplexMiddle; i++ {
 		r := d.Layer1Weights[i]
 		s.Layer1Weights.Data = append(s.Layer1Weights.Data, complex(rng.NormFloat64()*r.Stddev+r.Mean,
 			rng.NormFloat64()*r.IStddev+r.IMean))
 	}
-	for i := 0; i < Middle; i++ {
+	for i := 0; i < ComplexMiddle; i++ {
 		r := d.Layer1Bias[i]
 		s.Layer1Bias.Data = append(s.Layer1Bias.Data, complex(rng.NormFloat64()*r.Stddev+r.Mean,
 			rng.NormFloat64()*r.IStddev+r.IMean))
 	}
 
-	s.Layer2Weights = NewMatrix(0, 2*Middle, 3)
+	s.Layer2Weights = NewMatrix(0, 2*ComplexMiddle, 3)
 	s.Layer2Bias = NewMatrix(0, 1, 3)
-	for i := 0; i < 2*Middle*3; i++ {
+	for i := 0; i < 2*ComplexMiddle*3; i++ {
 		r := d.Layer2Weights[i]
 		s.Layer2Weights.Data = append(s.Layer2Weights.Data, complex(rng.NormFloat64()*r.Stddev+r.Mean,
 			rng.NormFloat64()*r.IStddev+r.IMean))
@@ -129,8 +129,8 @@ func (d ComplexDistribution) Sample(rng *rand.Rand) ComplexSample {
 	return s
 }
 
-// Learn learn the mode
-func Learn() {
+// ComplexLearn learn the mode
+func ComplexLearn() {
 	rng := rand.New(rand.NewSource(1))
 	data, err := iris.Load()
 	if err != nil {
@@ -210,18 +210,18 @@ func Learn() {
 			return networks[i].Loss < networks[j].Loss
 		})
 		min, index := math.MaxFloat64, 0
-		for j := 0; j < 150-Window; j++ {
+		for j := 0; j < 150-ComplexWindow; j++ {
 			mean := 0.0
-			for k := 0; k < Window; k++ {
+			for k := 0; k < ComplexWindow; k++ {
 				mean += networks[j+k].Loss
 			}
-			mean /= Window
+			mean /= ComplexWindow
 			stddev := 0.0
-			for k := 0; k < Window; k++ {
+			for k := 0; k < ComplexWindow; k++ {
 				diff := mean - networks[j+k].Loss
 				stddev += diff * diff
 			}
-			stddev /= Window
+			stddev /= ComplexWindow
 			stddev = math.Sqrt(stddev)
 			if stddev < min {
 				min, index = stddev, j
@@ -245,7 +245,7 @@ func Learn() {
 			Layer2Weights: make([]ComplexRandom, len(distribution.Layer2Weights)),
 			Layer2Bias:    make([]ComplexRandom, len(distribution.Layer2Bias)),
 		}
-		for j := 0; j < Window; j++ {
+		for j := 0; j < ComplexWindow; j++ {
 			for k, value := range networks[index+j].Layer1Weights.Data {
 				next.Layer1Weights[k].Mean += float64(real(value))
 				next.Layer1Weights[k].IMean += float64(imag(value))
@@ -264,22 +264,22 @@ func Learn() {
 			}
 		}
 		for j := range next.Layer1Weights {
-			next.Layer1Weights[j].Mean /= Window
-			next.Layer1Weights[j].IMean /= Window
+			next.Layer1Weights[j].Mean /= ComplexWindow
+			next.Layer1Weights[j].IMean /= ComplexWindow
 		}
 		for j := range next.Layer1Bias {
-			next.Layer1Bias[j].Mean /= Window
-			next.Layer1Bias[j].IMean /= Window
+			next.Layer1Bias[j].Mean /= ComplexWindow
+			next.Layer1Bias[j].IMean /= ComplexWindow
 		}
 		for j := range next.Layer2Weights {
-			next.Layer2Weights[j].Mean /= Window
-			next.Layer2Weights[j].IMean /= Window
+			next.Layer2Weights[j].Mean /= ComplexWindow
+			next.Layer2Weights[j].IMean /= ComplexWindow
 		}
 		for j := range next.Layer2Bias {
-			next.Layer2Bias[j].Mean /= Window
-			next.Layer2Bias[j].IMean /= Window
+			next.Layer2Bias[j].Mean /= ComplexWindow
+			next.Layer2Bias[j].IMean /= ComplexWindow
 		}
-		for j := 0; j < Window; j++ {
+		for j := 0; j < ComplexWindow; j++ {
 			for k, value := range networks[index+j].Layer1Weights.Data {
 				diff := next.Layer1Weights[k].Mean - float64(real(value))
 				next.Layer1Weights[k].Stddev += diff * diff
@@ -306,27 +306,27 @@ func Learn() {
 			}
 		}
 		for j := range next.Layer1Weights {
-			next.Layer1Weights[j].Stddev /= Window
+			next.Layer1Weights[j].Stddev /= ComplexWindow
 			next.Layer1Weights[j].Stddev = math.Sqrt(next.Layer1Weights[j].Stddev)
-			next.Layer1Weights[j].IStddev /= Window
+			next.Layer1Weights[j].IStddev /= ComplexWindow
 			next.Layer1Weights[j].IStddev = math.Sqrt(next.Layer1Weights[j].IStddev)
 		}
 		for j := range next.Layer1Bias {
-			next.Layer1Bias[j].Stddev /= Window
+			next.Layer1Bias[j].Stddev /= ComplexWindow
 			next.Layer1Bias[j].Stddev = math.Sqrt(next.Layer1Bias[j].Stddev)
-			next.Layer1Bias[j].IStddev /= Window
+			next.Layer1Bias[j].IStddev /= ComplexWindow
 			next.Layer1Bias[j].IStddev = math.Sqrt(next.Layer1Bias[j].IStddev)
 		}
 		for j := range next.Layer2Weights {
-			next.Layer2Weights[j].Stddev /= Window
+			next.Layer2Weights[j].Stddev /= ComplexWindow
 			next.Layer2Weights[j].Stddev = math.Sqrt(next.Layer2Weights[j].Stddev)
-			next.Layer2Weights[j].IStddev /= Window
+			next.Layer2Weights[j].IStddev /= ComplexWindow
 			next.Layer2Weights[j].IStddev = math.Sqrt(next.Layer2Weights[j].IStddev)
 		}
 		for j := range next.Layer2Bias {
-			next.Layer2Bias[j].Stddev /= Window
+			next.Layer2Bias[j].Stddev /= ComplexWindow
 			next.Layer2Bias[j].Stddev = math.Sqrt(next.Layer2Bias[j].Stddev)
-			next.Layer2Bias[j].IStddev /= Window
+			next.Layer2Bias[j].IStddev /= ComplexWindow
 			next.Layer2Bias[j].IStddev = math.Sqrt(next.Layer2Bias[j].IStddev)
 		}
 		distribution = next
