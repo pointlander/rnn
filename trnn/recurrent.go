@@ -6,6 +6,7 @@ package trnn
 
 import (
 	"compress/gzip"
+	"encoding/gob"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -111,8 +112,6 @@ type Network struct {
 	Q              Matrix
 	K              Matrix
 	V              Matrix
-	QState         Matrix
-	VState         Matrix
 	DecoderWeights Matrix
 	DecoderBias    Matrix
 	Loss           float64
@@ -146,10 +145,6 @@ func (d Distribution) Sample(rng *rand.Rand) Network {
 		r := d.V[i]
 		n.V.Data = append(n.V.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
 	}
-	n.QState = NewMatrix(0, Width, 256)
-	n.QState.Data = n.QState.Data[:cap(n.QState.Data)]
-	n.VState = NewMatrix(0, Width, 256)
-	n.VState.Data = n.VState.Data[:cap(n.VState.Data)]
 	n.DecoderWeights = NewMatrix(0, DecoderCols, DecoderRows)
 	n.DecoderBias = NewMatrix(0, 1, DecoderRows)
 	for i := 0; i < DecoderSize; i++ {
@@ -168,37 +163,39 @@ func (d Distribution) Sample(rng *rand.Rand) Network {
 func (n *Network) Inference(data []byte) {
 	input := NewMatrix(0, 256, 1)
 	input.Data = input.Data[:cap(input.Data)]
-	loss := 0.0
+	qState := NewMatrix(0, Width, 256)
+	qState.Data = qState.Data[:cap(qState.Data)]
+	vState := NewMatrix(0, Width, 256)
+	vState.Data = vState.Data[:cap(vState.Data)]
+	expected := make([]float64, 256)
+	index, loss := 0, 0.0
 	for s, symbol := range data[:len(data)-1] {
 		for i := 0; i < 256; i++ {
 			input.Data[i] = 0
 		}
 		input.Data[int(symbol)] = 1
-		for i := 1; i < 256; i++ {
-			for j := 0; j < Width; j++ {
-				n.QState.Data[i*Width+j] = n.QState.Data[(i-1)*Width+j]
-				n.VState.Data[i*Width+j] = n.VState.Data[(i-1)*Width+j]
-			}
-		}
 		encoded := EverettActivation(Add(MulT(n.EncoderWeights, input), n.EncoderBias))
 		q := MulT(n.Q, encoded)
 		k := MulT(n.K, encoded)
 		v := MulT(n.V, encoded)
 		for i, v := range q.Data {
-			n.QState.Data[i] = v
+			qState.Data[index*Width+i] = v
 		}
 		for i, v := range v.Data {
-			n.VState.Data[i] = v
+			vState.Data[index*Width+i] = v
 		}
-		a := SelfAttention(n.QState, k, n.VState)
+		a := SelfAttention(qState, k, vState)
 		decoded := TaylorSoftmax(Add(MulT(n.DecoderWeights, a), n.DecoderBias))
-		expected := make([]float64, 256)
+		for i := range expected {
+			expected[i] = 0
+		}
 		expected[int(data[s+1])] = 1
 		sum := 0.0
 		for i := 0; i < 256; i++ {
 			diff := expected[i] - float64(decoded.Data[i])
 			sum += diff * diff
 		}
+		index = (index + 1) % 256
 		loss += sum / 256
 	}
 	n.Loss = loss
@@ -226,6 +223,7 @@ func Learn() {
 
 	distribution := NewDistribution(rng)
 	networks := make([]Network, 128)
+	best := Network{}
 	minLoss := math.MaxFloat64
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
@@ -280,6 +278,7 @@ func Learn() {
 			}
 		}
 		if networks[index].Loss < minLoss {
+			best = networks[index]
 			minLoss = networks[index].Loss
 		} else {
 			continue
@@ -397,5 +396,15 @@ func Learn() {
 			next.DecoderBias[j].Stddev = math.Sqrt(next.DecoderBias[j].Stddev)
 		}
 		distribution = next
+	}
+	output, err := os.Create("network.gob")
+	if err != nil {
+		panic(err)
+	}
+	defer output.Close()
+	encoder := gob.NewEncoder(output)
+	err = encoder.Encode(best)
+	if err != nil {
+		panic(err)
 	}
 }
