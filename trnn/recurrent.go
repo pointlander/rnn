@@ -22,10 +22,8 @@ const (
 	Window = 8
 	// Width is the width of the network
 	Width = 256
-	// Offset is the offset
-	Offset = Width
 	// EncoderCols is the number of encoder columns
-	EncoderCols = Width + 256
+	EncoderCols = Width
 	// EncoderRows is the number of encoder rows
 	EncoderRows = Width
 	// EncoderSize is the number of encoder parameters
@@ -33,7 +31,7 @@ const (
 	// DecoderCols is the number of decoder columns
 	DecoderCols = Width
 	// DecoderRows is the number of decoder rows
-	DecoderRows = Width + 256
+	DecoderRows = Width
 	// DecoderSize is the number of decoder parameters
 	DecoderSize = DecoderCols * DecoderRows
 )
@@ -48,6 +46,9 @@ type Random struct {
 type Distribution struct {
 	EncoderWeights []Random
 	EncoderBias    []Random
+	Q              []Random
+	K              []Random
+	V              []Random
 	DecoderWeights []Random
 	DecoderBias    []Random
 }
@@ -55,30 +56,49 @@ type Distribution struct {
 // NewDistribution creates a new distribution
 func NewDistribution(rng *rand.Rand) Distribution {
 	var d Distribution
-	factor := math.Sqrt(2.0 / float64(EncoderCols))
+	//factor := math.Sqrt(2.0 / float64(EncoderCols))
 	for i := 0; i < EncoderSize; i++ {
 		d.EncoderWeights = append(d.EncoderWeights, Random{
-			Mean:   factor * rng.NormFloat64(),
-			Stddev: factor * rng.NormFloat64(),
+			Mean:   0,
+			Stddev: .01,
 		})
 	}
 	for i := 0; i < EncoderRows; i++ {
 		d.EncoderBias = append(d.EncoderBias, Random{
-			Mean:   factor * rng.NormFloat64(),
-			Stddev: factor * rng.NormFloat64(),
+			Mean:   0,
+			Stddev: .01,
 		})
 	}
-	factor = math.Sqrt(2.0 / float64(DecoderCols))
+	//factor = math.Sqrt(2.0 / float64(2*Width*Width))
+	for i := 0; i < 2*Width*Width; i++ {
+		d.Q = append(d.Q, Random{
+			Mean:   0,
+			Stddev: .01,
+		})
+	}
+	for i := 0; i < 2*Width*Width; i++ {
+		d.K = append(d.K, Random{
+			Mean:   0,
+			Stddev: .01,
+		})
+	}
+	for i := 0; i < 2*Width*Width; i++ {
+		d.V = append(d.V, Random{
+			Mean:   0,
+			Stddev: .01,
+		})
+	}
+	//factor = math.Sqrt(2.0 / float64(DecoderCols))
 	for i := 0; i < DecoderSize; i++ {
 		d.DecoderWeights = append(d.DecoderWeights, Random{
-			Mean:   factor * rng.NormFloat64(),
-			Stddev: factor * rng.NormFloat64(),
+			Mean:   0,
+			Stddev: .01,
 		})
 	}
 	for i := 0; i < DecoderRows; i++ {
 		d.DecoderBias = append(d.DecoderBias, Random{
-			Mean:   factor * rng.NormFloat64(),
-			Stddev: factor * rng.NormFloat64(),
+			Mean:   0,
+			Stddev: .01,
 		})
 	}
 	return d
@@ -86,10 +106,13 @@ func NewDistribution(rng *rand.Rand) Distribution {
 
 // Network is a neural network
 type Network struct {
-	EncoderState   Matrix
 	EncoderWeights Matrix
 	EncoderBias    Matrix
-	DecoderState   Matrix
+	Q              Matrix
+	K              Matrix
+	V              Matrix
+	QState         Matrix
+	VState         Matrix
 	DecoderWeights Matrix
 	DecoderBias    Matrix
 	Loss           float64
@@ -98,8 +121,6 @@ type Network struct {
 // Sample samples a network from the distribution
 func (d Distribution) Sample(rng *rand.Rand) Network {
 	var n Network
-	n.EncoderState = NewMatrix(0, EncoderCols, 1)
-	n.EncoderState.Data = n.EncoderState.Data[:EncoderCols]
 	n.EncoderWeights = NewMatrix(0, EncoderCols, EncoderRows)
 	n.EncoderBias = NewMatrix(0, 1, EncoderRows)
 	for i := 0; i < EncoderSize; i++ {
@@ -110,9 +131,25 @@ func (d Distribution) Sample(rng *rand.Rand) Network {
 		r := d.EncoderBias[i]
 		n.EncoderBias.Data = append(n.EncoderBias.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
 	}
-
-	n.DecoderState = NewMatrix(0, DecoderCols, 1)
-	n.DecoderState.Data = n.DecoderState.Data[:DecoderCols]
+	n.Q = NewMatrix(0, 2*Width, Width)
+	for i := 0; i < 2*Width*Width; i++ {
+		r := d.Q[i]
+		n.Q.Data = append(n.Q.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
+	}
+	n.K = NewMatrix(0, 2*Width, Width)
+	for i := 0; i < 2*Width*Width; i++ {
+		r := d.K[i]
+		n.K.Data = append(n.K.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
+	}
+	n.V = NewMatrix(0, 2*Width, Width)
+	for i := 0; i < 2*Width*Width; i++ {
+		r := d.V[i]
+		n.V.Data = append(n.V.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
+	}
+	n.QState = NewMatrix(0, Width, 256)
+	n.QState.Data = n.QState.Data[:cap(n.QState.Data)]
+	n.VState = NewMatrix(0, Width, 256)
+	n.VState.Data = n.VState.Data[:cap(n.VState.Data)]
 	n.DecoderWeights = NewMatrix(0, DecoderCols, DecoderRows)
 	n.DecoderBias = NewMatrix(0, 1, DecoderRows)
 	for i := 0; i < DecoderSize; i++ {
@@ -129,25 +166,37 @@ func (d Distribution) Sample(rng *rand.Rand) Network {
 
 // Inference run inference on the network
 func (n *Network) Inference(data []byte) {
-	for _, symbol := range data {
-		for i := 0; i < 256; i++ {
-			n.EncoderState.Data[Offset+i] = -1
-		}
-		n.EncoderState.Data[Offset+int(symbol)] = 1
-		output := Step(Add(MulT(n.EncoderWeights, n.EncoderState), n.EncoderBias))
-		copy(n.EncoderState.Data[:Offset], output.Data)
-	}
-	copy(n.DecoderState.Data, n.EncoderState.Data[:Offset])
+	input := NewMatrix(0, 256, 1)
+	input.Data = input.Data[:cap(input.Data)]
 	loss := 0.0
-	for _, symbol := range data {
-		direct := Add(MulT(n.DecoderWeights, n.DecoderState), n.DecoderBias)
-		output := Step(direct)
-		copy(n.DecoderState.Data, output.Data[:Offset])
+	for s, symbol := range data[:len(data)-1] {
+		for i := 0; i < 256; i++ {
+			input.Data[i] = 0
+		}
+		input.Data[int(symbol)] = 1
+		for i := 1; i < 256; i++ {
+			for j := 0; j < Width; j++ {
+				n.QState.Data[i*Width+j] = n.QState.Data[(i-1)*Width+j]
+				n.VState.Data[i*Width+j] = n.VState.Data[(i-1)*Width+j]
+			}
+		}
+		encoded := EverettActivation(Add(MulT(n.EncoderWeights, input), n.EncoderBias))
+		q := MulT(n.Q, encoded)
+		k := MulT(n.K, encoded)
+		v := MulT(n.V, encoded)
+		for i, v := range q.Data {
+			n.QState.Data[i] = v
+		}
+		for i, v := range v.Data {
+			n.VState.Data[i] = v
+		}
+		a := SelfAttention(n.QState, k, n.VState)
+		decoded := TaylorSoftmax(Add(MulT(n.DecoderWeights, a), n.DecoderBias))
 		expected := make([]float64, 256)
-		expected[int(symbol)] = 1
+		expected[int(data[s+1])] = 1
 		sum := 0.0
 		for i := 0; i < 256; i++ {
-			diff := expected[i] - float64(direct.Data[Offset+i])
+			diff := expected[i] - float64(decoded.Data[i])
 			sum += diff * diff
 		}
 		loss += sum / 256
@@ -197,15 +246,18 @@ func Learn() {
 		}
 		for k < len(networks) {
 			<-done
+			fmt.Printf(".")
 			flight--
 			go inference(data[begin:begin+1024], k)
 			flight++
 			k++
 		}
 		for flight > 0 {
+			fmt.Printf(".")
 			<-done
 			flight--
 		}
+		fmt.Println()
 		sort.Slice(networks, func(i, j int) bool {
 			return networks[i].Loss < networks[j].Loss
 		})
@@ -236,6 +288,9 @@ func Learn() {
 		next := Distribution{
 			EncoderWeights: make([]Random, len(distribution.EncoderWeights)),
 			EncoderBias:    make([]Random, len(distribution.EncoderBias)),
+			Q:              make([]Random, len(distribution.Q)),
+			K:              make([]Random, len(distribution.K)),
+			V:              make([]Random, len(distribution.V)),
 			DecoderWeights: make([]Random, len(distribution.DecoderWeights)),
 			DecoderBias:    make([]Random, len(distribution.DecoderBias)),
 		}
@@ -245,6 +300,15 @@ func Learn() {
 			}
 			for k, value := range networks[index+j].EncoderBias.Data {
 				next.EncoderBias[k].Mean += float64(value)
+			}
+			for k, value := range networks[index+j].Q.Data {
+				next.Q[k].Mean += float64(value)
+			}
+			for k, value := range networks[index+j].K.Data {
+				next.K[k].Mean += float64(value)
+			}
+			for k, value := range networks[index+j].V.Data {
+				next.V[k].Mean += float64(value)
 			}
 			for k, value := range networks[index+j].DecoderWeights.Data {
 				next.DecoderWeights[k].Mean += float64(value)
@@ -259,13 +323,22 @@ func Learn() {
 		for j := range next.EncoderBias {
 			next.EncoderBias[j].Mean /= Window
 		}
+		for j := range next.Q {
+			next.Q[j].Mean /= Window
+		}
+		for j := range next.K {
+			next.K[j].Mean /= Window
+		}
+		for j := range next.V {
+			next.V[j].Mean /= Window
+		}
 		for j := range next.DecoderWeights {
 			next.DecoderWeights[j].Mean /= Window
 		}
 		for j := range next.DecoderBias {
 			next.DecoderBias[j].Mean /= Window
 		}
-		for j := 0; j < 8; j++ {
+		for j := 0; j < Window; j++ {
 			for k, value := range networks[index+j].EncoderWeights.Data {
 				diff := next.EncoderWeights[k].Mean - float64(value)
 				next.EncoderWeights[k].Stddev += diff * diff
@@ -273,6 +346,18 @@ func Learn() {
 			for k, value := range networks[index+j].EncoderBias.Data {
 				diff := next.EncoderBias[k].Mean - float64(value)
 				next.EncoderBias[k].Stddev += diff * diff
+			}
+			for k, value := range networks[index+j].Q.Data {
+				diff := next.Q[k].Mean - float64(value)
+				next.Q[k].Stddev += diff * diff
+			}
+			for k, value := range networks[index+j].K.Data {
+				diff := next.K[k].Mean - float64(value)
+				next.K[k].Stddev += diff * diff
+			}
+			for k, value := range networks[index+j].V.Data {
+				diff := next.V[k].Mean - float64(value)
+				next.V[k].Stddev += diff * diff
 			}
 			for k, value := range networks[index+j].DecoderWeights.Data {
 				diff := next.DecoderWeights[k].Mean - float64(value)
@@ -290,6 +375,18 @@ func Learn() {
 		for j := range next.EncoderBias {
 			next.EncoderBias[j].Stddev /= Window
 			next.EncoderBias[j].Stddev = math.Sqrt(next.EncoderBias[j].Stddev)
+		}
+		for j := range next.Q {
+			next.Q[j].Stddev /= Window
+			next.Q[j].Stddev = math.Sqrt(next.Q[j].Stddev)
+		}
+		for j := range next.K {
+			next.K[j].Stddev /= Window
+			next.K[j].Stddev = math.Sqrt(next.K[j].Stddev)
+		}
+		for j := range next.V {
+			next.V[j].Stddev /= Window
+			next.V[j].Stddev = math.Sqrt(next.V[j].Stddev)
 		}
 		for j := range next.DecoderWeights {
 			next.DecoderWeights[j].Stddev /= Window

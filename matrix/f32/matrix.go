@@ -183,11 +183,11 @@ func softmax(values []float32) {
 // SelfAttention computes the self attention of Q, K, V
 func SelfAttention(Q, K, V Matrix) Matrix {
 	o := Matrix{
-		Cols: Q.Cols,
-		Rows: Q.Rows,
-		Data: make([]float32, 0, Q.Cols*Q.Rows),
+		Cols: V.Rows,
+		Rows: K.Rows,
+		Data: make([]float32, 0, V.Rows*K.Rows),
 	}
-	outputs, values := make([]float32, V.Cols), make([]float32, K.Rows)
+	outputs, values := make([]float32, V.Cols), make([]float32, Q.Rows)
 	V = T(V)
 	for i := 0; i < K.Rows; i++ {
 		K := K.Data[i*K.Cols : (i+1)*K.Cols]
