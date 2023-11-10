@@ -10,11 +10,14 @@ import (
 	"github.com/pointlander/rnn/discrete"
 	"github.com/pointlander/rnn/feedforward"
 	"github.com/pointlander/rnn/recurrent"
+	"github.com/pointlander/rnn/trnn"
 )
 
 var (
 	// FlagRecurrent recurrent mode
 	FlagRecurrent = flag.Bool("recurrent", false, "recurrent mode")
+	// FlagTRNN is the transformer recurrent neural network mode
+	FlagTRNN = flag.Bool("trnn", false, "transformer recurrent neural network mode")
 	// FlagDiscrete discrete mode
 	FlagDiscrete = flag.Bool("discrete", false, "discrete mode")
 	// FlagForward feedforward mode
@@ -26,7 +29,10 @@ var (
 func main() {
 	flag.Parse()
 
-	if *FlagRecurrent {
+	if *FlagTRNN {
+		trnn.Learn()
+		return
+	} else if *FlagRecurrent {
 		recurrent.Learn()
 		return
 	} else if *FlagDiscrete {

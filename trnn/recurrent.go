@@ -180,7 +180,7 @@ func Learn() {
 	minLoss := math.MaxFloat64
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
-	inference := func(j int) {
+	inference := func(data []byte, j int) {
 		networks[j].Inference(data)
 		done <- true
 	}
@@ -189,15 +189,16 @@ func Learn() {
 			networks[j] = distribution.Sample(rng)
 		}
 		k, flight := 0, 0
+		begin := rng.Intn(len(data) - 1024)
 		for j := 0; j < cpus && k < len(networks); j++ {
-			go inference(k)
+			go inference(data[begin:begin+1024], k)
 			flight++
 			k++
 		}
 		for k < len(networks) {
 			<-done
 			flight--
-			go inference(k)
+			go inference(data[begin:begin+1024], k)
 			flight++
 			k++
 		}
