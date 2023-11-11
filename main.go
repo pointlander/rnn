@@ -24,12 +24,18 @@ var (
 	FlagForward = flag.Bool("forward", false, "feedforward mode")
 	// FlagComplexForward feedforward mode
 	FlagComplexForward = flag.Bool("complexforward", false, "complex feedforward mode")
+	// FlagInfer inference mode
+	FlagInfer = flag.Bool("infer", false, "inference mode")
 )
 
 func main() {
 	flag.Parse()
 
 	if *FlagTRNN {
+		if *FlagInfer {
+			trnn.Infer()
+			return
+		}
 		trnn.Learn()
 		return
 	} else if *FlagRecurrent {

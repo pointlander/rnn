@@ -161,42 +161,49 @@ func (d Distribution) Sample(rng *rand.Rand) Network {
 
 // Inference run inference on the network
 func (n *Network) Inference(data []byte) {
-	input := NewMatrix(0, 256, 1)
-	input.Data = input.Data[:cap(input.Data)]
-	qState := NewMatrix(0, Width, 256)
-	qState.Data = qState.Data[:cap(qState.Data)]
-	vState := NewMatrix(0, Width, 256)
-	vState.Data = vState.Data[:cap(vState.Data)]
-	expected := make([]float64, 256)
-	index, loss := 0, 0.0
-	for s, symbol := range data[:len(data)-1] {
-		for i := 0; i < 256; i++ {
-			input.Data[i] = 0
+	rng := rand.New(rand.NewSource(1))
+	loss := 0.0
+	for i := 0; i < 1024; i++ {
+		begin := rng.Intn(len(data) - 1024)
+		end := begin + 1024
+		input := NewMatrix(0, 256, 1)
+		input.Data = input.Data[:cap(input.Data)]
+		qState := NewMatrix(0, Width, 256)
+		qState.Data = qState.Data[:cap(qState.Data)]
+		vState := NewMatrix(0, Width, 256)
+		vState.Data = vState.Data[:cap(vState.Data)]
+		expected := make([]float64, 256)
+		index := 0
+		x := data[begin:end]
+		for s, symbol := range x[:len(x)-1] {
+			for i := 0; i < 256; i++ {
+				input.Data[i] = 0
+			}
+			input.Data[int(symbol)] = 1
+			encoded := EverettActivation(Add(MulT(n.EncoderWeights, input), n.EncoderBias))
+			q := MulT(n.Q, encoded)
+			k := MulT(n.K, encoded)
+			v := MulT(n.V, encoded)
+			for i, v := range q.Data {
+				qState.Data[index*Width+i] = v
+			}
+			for i, v := range v.Data {
+				vState.Data[index*Width+i] = v
+			}
+			a := SelfAttention(qState, k, vState)
+			decoded := TaylorSoftmax(Add(MulT(n.DecoderWeights, a), n.DecoderBias))
+			for i := range expected {
+				expected[i] = 0
+			}
+			expected[int(x[s+1])] = 1
+			sum := 0.0
+			for i := 0; i < 256; i++ {
+				diff := expected[i] - float64(decoded.Data[i])
+				sum += diff * diff
+			}
+			index = (index + 1) % 256
+			loss += sum / 256
 		}
-		input.Data[int(symbol)] = 1
-		encoded := EverettActivation(Add(MulT(n.EncoderWeights, input), n.EncoderBias))
-		q := MulT(n.Q, encoded)
-		k := MulT(n.K, encoded)
-		v := MulT(n.V, encoded)
-		for i, v := range q.Data {
-			qState.Data[index*Width+i] = v
-		}
-		for i, v := range v.Data {
-			vState.Data[index*Width+i] = v
-		}
-		a := SelfAttention(qState, k, vState)
-		decoded := TaylorSoftmax(Add(MulT(n.DecoderWeights, a), n.DecoderBias))
-		for i := range expected {
-			expected[i] = 0
-		}
-		expected[int(data[s+1])] = 1
-		sum := 0.0
-		for i := 0; i < 256; i++ {
-			diff := expected[i] - float64(decoded.Data[i])
-			sum += diff * diff
-		}
-		index = (index + 1) % 256
-		loss += sum / 256
 	}
 	n.Loss = loss
 }
@@ -236,9 +243,8 @@ func Learn() {
 			networks[j] = distribution.Sample(rng)
 		}
 		k, flight := 0, 0
-		begin := rng.Intn(len(data) - 1024)
 		for j := 0; j < cpus && k < len(networks); j++ {
-			go inference(data[begin:begin+1024], k)
+			go inference(data, k)
 			flight++
 			k++
 		}
@@ -246,7 +252,7 @@ func Learn() {
 			<-done
 			fmt.Printf(".")
 			flight--
-			go inference(data[begin:begin+1024], k)
+			go inference(data, k)
 			flight++
 			k++
 		}
@@ -407,4 +413,55 @@ func Learn() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// Infer inference mode
+func Infer() {
+	in, err := os.Open("network.gob")
+	if err != nil {
+		panic(err)
+	}
+	defer in.Close()
+	decoder := gob.NewDecoder(in)
+	n := Network{}
+	err = decoder.Decode(&n)
+	if err != nil {
+		panic(err)
+	}
+
+	input := NewMatrix(0, 256, 1)
+	input.Data = input.Data[:cap(input.Data)]
+	qState := NewMatrix(0, Width, 256)
+	qState.Data = qState.Data[:cap(qState.Data)]
+	vState := NewMatrix(0, Width, 256)
+	vState.Data = vState.Data[:cap(vState.Data)]
+	index := 0
+	data := []byte{'G', 'o'}
+	for _, symbol := range data {
+		for i := 0; i < 256; i++ {
+			input.Data[i] = 0
+		}
+		input.Data[int(symbol)] = 1
+		encoded := EverettActivation(Add(MulT(n.EncoderWeights, input), n.EncoderBias))
+		q := MulT(n.Q, encoded)
+		k := MulT(n.K, encoded)
+		v := MulT(n.V, encoded)
+		for i, v := range q.Data {
+			qState.Data[index*Width+i] = v
+		}
+		for i, v := range v.Data {
+			vState.Data[index*Width+i] = v
+		}
+		a := SelfAttention(qState, k, vState)
+		decoded := TaylorSoftmax(Add(MulT(n.DecoderWeights, a), n.DecoderBias))
+		max, sym := 0.0, 0
+		for i, s := range decoded.Data {
+			if float64(s) > max {
+				max, sym = float64(s), i
+			}
+		}
+		fmt.Printf("%c", sym)
+		index = (index + 1) % 256
+	}
+	fmt.Printf("\n")
 }
