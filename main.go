@@ -8,8 +8,8 @@ import (
 	"flag"
 
 	"github.com/pointlander/rnn/discrete"
+	"github.com/pointlander/rnn/encdec"
 	"github.com/pointlander/rnn/feedforward"
-	"github.com/pointlander/rnn/recurrent"
 	"github.com/pointlander/rnn/trnn"
 )
 
@@ -39,7 +39,7 @@ func main() {
 		trnn.Learn()
 		return
 	} else if *FlagRecurrent {
-		recurrent.Learn()
+		encdec.Learn()
 		return
 	} else if *FlagDiscrete {
 		discrete.Learn()
