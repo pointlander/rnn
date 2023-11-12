@@ -6,6 +6,7 @@ package recurrent
 
 import (
 	"compress/gzip"
+	"encoding/gob"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -31,7 +32,7 @@ const (
 	// DecoderCols is the number of decoder columns
 	DecoderCols = Width
 	// DecoderRows is the number of decoder rows
-	DecoderRows = Width + 256
+	DecoderRows = 256
 	// DecoderSize is the number of decoder parameters
 	DecoderSize = DecoderCols * DecoderRows
 )
@@ -84,10 +85,8 @@ func NewDistribution(rng *rand.Rand) Distribution {
 
 // Network is a neural network
 type Network struct {
-	EncoderState   Matrix
 	EncoderWeights Matrix
 	EncoderBias    Matrix
-	DecoderState   Matrix
 	DecoderWeights Matrix
 	DecoderBias    Matrix
 	Loss           float64
@@ -96,8 +95,6 @@ type Network struct {
 // Sample samples a network from the distribution
 func (d Distribution) Sample(rng *rand.Rand) Network {
 	var n Network
-	n.EncoderState = NewMatrix(0, EncoderCols, 1)
-	n.EncoderState.Data = n.EncoderState.Data[:EncoderCols]
 	n.EncoderWeights = NewMatrix(0, EncoderCols, EncoderRows)
 	n.EncoderBias = NewMatrix(0, 1, EncoderRows)
 	for i := 0; i < EncoderSize; i++ {
@@ -108,9 +105,6 @@ func (d Distribution) Sample(rng *rand.Rand) Network {
 		r := d.EncoderBias[i]
 		n.EncoderBias.Data = append(n.EncoderBias.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
 	}
-
-	n.DecoderState = NewMatrix(0, DecoderCols, 1)
-	n.DecoderState.Data = n.DecoderState.Data[:DecoderCols]
 	n.DecoderWeights = NewMatrix(0, DecoderCols, DecoderRows)
 	n.DecoderBias = NewMatrix(0, 1, DecoderRows)
 	for i := 0; i < DecoderSize; i++ {
@@ -127,28 +121,31 @@ func (d Distribution) Sample(rng *rand.Rand) Network {
 
 // Inference run inference on the network
 func (n *Network) Inference(data []byte) {
-	for _, symbol := range data {
-		for i := 0; i < 256; i++ {
-			n.EncoderState.Data[Offset+i] = -1
-		}
-		n.EncoderState.Data[Offset+int(symbol)] = 1
-		output := Step(Add(MulT(n.EncoderWeights, n.EncoderState), n.EncoderBias))
-		copy(n.EncoderState.Data[:Offset], output.Data)
-	}
-	copy(n.DecoderState.Data, n.EncoderState.Data[:Offset])
+	rng := rand.New(rand.NewSource(1))
 	loss := 0.0
-	for _, symbol := range data {
-		direct := Add(MulT(n.DecoderWeights, n.DecoderState), n.DecoderBias)
-		output := Step(direct)
-		copy(n.DecoderState.Data, output.Data[:Offset])
-		expected := make([]float64, 256)
-		expected[int(symbol)] = 1
-		sum := 0.0
-		for i := 0; i < 256; i++ {
-			diff := expected[i] - float64(direct.Data[Offset+i])
-			sum += diff * diff
+	for i := 0; i < 1024; i++ {
+		begin := rng.Intn(len(data) - 1024)
+		end := begin + 1024
+		data := data[begin:end]
+		state := NewMatrix(0, EncoderCols, 1)
+		state.Data = state.Data[:EncoderCols]
+		for i, symbol := range data[:len(data)-1] {
+			for i := 0; i < 256; i++ {
+				state.Data[Offset+i] = -1
+			}
+			state.Data[Offset+int(symbol)] = 1
+			output := Step(Add(MulT(n.EncoderWeights, state), n.EncoderBias))
+			copy(state.Data[:Offset], output.Data)
+			direct := Add(MulT(n.DecoderWeights, output), n.DecoderBias)
+			expected := make([]float64, 256)
+			expected[int(data[i+1])] = 1
+			sum := 0.0
+			for i := 0; i < 256; i++ {
+				diff := expected[i] - float64(direct.Data[i])
+				sum += diff * diff
+			}
+			loss += sum / 256
 		}
-		loss += sum / 256
 	}
 	n.Loss = loss
 }
@@ -171,10 +168,9 @@ func Learn() {
 		panic(err)
 	}
 
-	//data = data[:1024]
-
 	distribution := NewDistribution(rng)
 	networks := make([]Network, 128)
+	best := Network{}
 	minLoss := math.MaxFloat64
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
@@ -182,7 +178,7 @@ func Learn() {
 		networks[j].Inference(data)
 		done <- true
 	}
-	for i := 0; i < 128; i++ {
+	for i := 0; i < 32; i++ {
 		for j := range networks {
 			networks[j] = distribution.Sample(rng)
 		}
@@ -194,6 +190,7 @@ func Learn() {
 		}
 		for k < len(networks) {
 			<-done
+			fmt.Printf(".")
 			flight--
 			go inference(k)
 			flight++
@@ -201,8 +198,10 @@ func Learn() {
 		}
 		for flight > 0 {
 			<-done
+			fmt.Printf(".")
 			flight--
 		}
+		fmt.Printf("\n")
 		sort.Slice(networks, func(i, j int) bool {
 			return networks[i].Loss < networks[j].Loss
 		})
@@ -225,6 +224,7 @@ func Learn() {
 			}
 		}
 		if networks[index].Loss < minLoss {
+			best = networks[index]
 			minLoss = networks[index].Loss
 		} else {
 			continue
@@ -297,5 +297,15 @@ func Learn() {
 			next.DecoderBias[j].Stddev = math.Sqrt(next.DecoderBias[j].Stddev)
 		}
 		distribution = next
+	}
+	output, err := os.Create("recurrent.gob")
+	if err != nil {
+		panic(err)
+	}
+	defer output.Close()
+	encoder := gob.NewEncoder(output)
+	err = encoder.Encode(best)
+	if err != nil {
+		panic(err)
 	}
 }
