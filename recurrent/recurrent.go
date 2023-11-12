@@ -309,3 +309,38 @@ func Learn() {
 		panic(err)
 	}
 }
+
+// Infer inference mode
+func Infer() {
+	in, err := os.Open("recurrent.gob")
+	if err != nil {
+		panic(err)
+	}
+	defer in.Close()
+	decoder := gob.NewDecoder(in)
+	n := Network{}
+	err = decoder.Decode(&n)
+	if err != nil {
+		panic(err)
+	}
+
+	data := []byte{'G', 'o', 'd'}
+	state := NewMatrix(0, EncoderCols, 1)
+	state.Data = state.Data[:EncoderCols]
+	for _, symbol := range data {
+		for i := 0; i < 256; i++ {
+			state.Data[Offset+i] = -1
+		}
+		state.Data[Offset+int(symbol)] = 1
+		output := Step(Add(MulT(n.EncoderWeights, state), n.EncoderBias))
+		copy(state.Data[:Offset], output.Data)
+		direct := Add(MulT(n.DecoderWeights, output), n.DecoderBias)
+		max, index := 0.0, 0
+		for key, value := range direct.Data {
+			if float64(value) > max {
+				max, index = float64(value), key
+			}
+		}
+		fmt.Printf("'%c' %d\n", index, index)
+	}
+}

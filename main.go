@@ -42,6 +42,10 @@ func main() {
 		trnn.Learn()
 		return
 	} else if *FlagRecurrent {
+		if *FlagInfer {
+			recurrent.Infer()
+			return
+		}
 		recurrent.Learn()
 		return
 	} else if *FlagEncDec {
