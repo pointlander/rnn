@@ -64,5 +64,5 @@ func main() {
 	}
 
 	//feedforward.QuatLearn()
-	f32.Factor()
+	f32.Factor(true)
 }

@@ -260,10 +260,11 @@ func TaylorSoftmax(m Matrix) Matrix {
 }
 
 // Factor factores a matrix into AA^T
-func Factor() {
+func Factor(debug bool) {
 	rng := rand.New(rand.NewSource(1))
 	set := tf32.NewSet()
 	set.Add("A", 8, 8)
+	set.Add("AT", 8, 8)
 	set.Add("E", 8, 8)
 
 	for _, w := range set.Weights {
@@ -272,13 +273,14 @@ func Factor() {
 			w.X = append(w.X, float32(rng.NormFloat64()*factor))
 		}
 	}
+	copy(set.Weights[1].X, set.Weights[0].X)
 
 	deltas := make([][]float32, 0, 8)
 	for _, p := range set.Weights {
 		deltas = append(deltas, make([]float32, len(p.X)))
 	}
 
-	cost := tf32.Avg(tf32.Quadratic(tf32.Mul(set.Get("A"), tf32.T(set.Get("A"))), set.Get("E")))
+	cost := tf32.Avg(tf32.Quadratic(tf32.Mul(set.Get("A"), tf32.T(set.Get("AT"))), set.Get("E")))
 	alpha, eta, iterations := float32(.01), float32(.01), 8*2048
 	points := make(plotter.XYs, 0, iterations)
 	i := 0
@@ -305,27 +307,30 @@ func Factor() {
 			set.Weights[0].X[k] += deltas[0][k]
 		}
 
+		copy(set.Weights[1].X, set.Weights[0].X)
 		points = append(points, plotter.XY{X: float64(i), Y: float64(total)})
 		fmt.Println(i, total)
 		i++
 	}
 
-	p := plot.New()
+	if debug {
+		p := plot.New()
 
-	p.Title.Text = "epochs vs cost"
-	p.X.Label.Text = "epochs"
-	p.Y.Label.Text = "cost"
+		p.Title.Text = "epochs vs cost"
+		p.X.Label.Text = "epochs"
+		p.Y.Label.Text = "cost"
 
-	scatter, err := plotter.NewScatter(points)
-	if err != nil {
-		panic(err)
-	}
-	scatter.GlyphStyle.Radius = vg.Length(1)
-	scatter.GlyphStyle.Shape = draw.CircleGlyph{}
-	p.Add(scatter)
+		scatter, err := plotter.NewScatter(points)
+		if err != nil {
+			panic(err)
+		}
+		scatter.GlyphStyle.Radius = vg.Length(1)
+		scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+		p.Add(scatter)
 
-	err = p.Save(8*vg.Inch, 8*vg.Inch, "cost.png")
-	if err != nil {
-		panic(err)
+		err = p.Save(8*vg.Inch, 8*vg.Inch, "cost.png")
+		if err != nil {
+			panic(err)
+		}
 	}
 }
