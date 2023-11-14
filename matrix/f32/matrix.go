@@ -260,7 +260,7 @@ func TaylorSoftmax(m Matrix) Matrix {
 }
 
 // Factor factores a matrix into AA^T
-func Factor(vars [][]float32, debug bool) {
+func Factor(vars [][]float32, debug bool) Matrix {
 	rng := rand.New(rand.NewSource(1))
 	length := len(vars)
 	set := tf32.NewSet()
@@ -352,4 +352,11 @@ func Factor(vars [][]float32, debug bool) {
 			panic(err)
 		}
 	}
+
+	a := NewMatrix(0, set.Weights[0].S[0], set.Weights[0].S[1])
+	for _, v := range set.Weights[0].X {
+		a.Data = append(a.Data, v)
+	}
+
+	return a
 }
