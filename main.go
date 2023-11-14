@@ -6,6 +6,7 @@ package main
 
 import (
 	"flag"
+	"math/rand"
 
 	"github.com/pointlander/rnn/discrete"
 	"github.com/pointlander/rnn/encdec"
@@ -64,5 +65,13 @@ func main() {
 	}
 
 	//feedforward.QuatLearn()
-	f32.Factor(true)
+	rng := rand.New(rand.NewSource(1))
+	vars := make([][]float32, 16)
+	for i := range vars {
+		vars[i] = make([]float32, 8)
+		for j := range vars[i] {
+			vars[i][j] = float32(rng.NormFloat64())
+		}
+	}
+	f32.Factor(vars, true)
 }
