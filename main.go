@@ -10,6 +10,7 @@ import (
 	"github.com/pointlander/rnn/discrete"
 	"github.com/pointlander/rnn/encdec"
 	"github.com/pointlander/rnn/feedforward"
+	"github.com/pointlander/rnn/matrix/f32"
 	"github.com/pointlander/rnn/recurrent"
 	"github.com/pointlander/rnn/trnn"
 )
@@ -62,5 +63,6 @@ func main() {
 		return
 	}
 
-	feedforward.QuatLearn()
+	//feedforward.QuatLearn()
+	f32.Factor()
 }

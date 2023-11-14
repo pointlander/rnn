@@ -7,6 +7,13 @@ package f32
 import (
 	"fmt"
 	"math"
+	"math/rand"
+
+	"github.com/pointlander/gradient/tf32"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg"
+	"gonum.org/v1/plot/vg/draw"
 )
 
 const (
@@ -250,4 +257,75 @@ func TaylorSoftmax(m Matrix) Matrix {
 		}
 	}
 	return o
+}
+
+// Factor factores a matrix into AA^T
+func Factor() {
+	rng := rand.New(rand.NewSource(1))
+	set := tf32.NewSet()
+	set.Add("A", 8, 8)
+	set.Add("E", 8, 8)
+
+	for _, w := range set.Weights {
+		factor := math.Sqrt(2.0 / float64(w.S[0]))
+		for i := 0; i < cap(w.X); i++ {
+			w.X = append(w.X, float32(rng.NormFloat64()*factor))
+		}
+	}
+
+	deltas := make([][]float32, 0, 8)
+	for _, p := range set.Weights {
+		deltas = append(deltas, make([]float32, len(p.X)))
+	}
+
+	cost := tf32.Avg(tf32.Quadratic(tf32.Mul(set.Get("A"), tf32.T(set.Get("A"))), set.Get("E")))
+	alpha, eta, iterations := float32(.01), float32(.01), 8*2048
+	points := make(plotter.XYs, 0, iterations)
+	i := 0
+	for i < iterations {
+		total := float32(0.0)
+		set.Zero()
+
+		total += tf32.Gradient(cost).X[0]
+		sum := float32(0.0)
+		for _, p := range set.Weights {
+			for _, d := range p.D {
+				sum += d * d
+			}
+		}
+		norm := float32(math.Sqrt(float64(sum)))
+		scaling := float32(1.0)
+		if norm > 1 {
+			scaling = 1 / norm
+		}
+
+		w := set.Weights[0]
+		for k, d := range w.D {
+			deltas[0][k] = alpha*deltas[0][k] - eta*d*scaling
+			set.Weights[0].X[k] += deltas[0][k]
+		}
+
+		points = append(points, plotter.XY{X: float64(i), Y: float64(total)})
+		fmt.Println(i, total)
+		i++
+	}
+
+	p := plot.New()
+
+	p.Title.Text = "epochs vs cost"
+	p.X.Label.Text = "epochs"
+	p.Y.Label.Text = "cost"
+
+	scatter, err := plotter.NewScatter(points)
+	if err != nil {
+		panic(err)
+	}
+	scatter.GlyphStyle.Radius = vg.Length(1)
+	scatter.GlyphStyle.Shape = draw.CircleGlyph{}
+	p.Add(scatter)
+
+	err = p.Save(8*vg.Inch, 8*vg.Inch, "cost.png")
+	if err != nil {
+		panic(err)
+	}
 }
