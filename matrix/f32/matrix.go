@@ -259,8 +259,14 @@ func TaylorSoftmax(m Matrix) Matrix {
 	return o
 }
 
+// Multi is a multivariate distribution
+type Multi struct {
+	A Matrix
+	U []float32
+}
+
 // Factor factores a matrix into AA^T
-func Factor(vars [][]float32, debug bool) Matrix {
+func Factor(vars [][]float32, debug bool) Multi {
 	rng := rand.New(rand.NewSource(1))
 	length := len(vars)
 	set := tf32.NewSet()
@@ -358,5 +364,21 @@ func Factor(vars [][]float32, debug bool) Matrix {
 		a.Data = append(a.Data, v)
 	}
 
-	return a
+	return Multi{
+		A: a,
+		U: mu,
+	}
+}
+
+// Sample samples from the multivariate distribution
+func (m Multi) Sample(rng *rand.Rand) []float32 {
+	s := NewMatrix(0, len(m.U), 1)
+	for i := 0; i < len(m.U); i++ {
+		s.Data = append(s.Data, float32(rng.NormFloat64()))
+	}
+	s = MulT(m.A, s)
+	for i := range s.Data {
+		s.Data[i] += m.U[i]
+	}
+	return s.Data
 }
