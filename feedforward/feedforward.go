@@ -34,6 +34,7 @@ type Distribution struct {
 	Layer1Bias    []Random
 	Layer2Weights []Random
 	Layer2Bias    []Random
+	Multi         *Multi
 }
 
 // Sample is a neural network sample
@@ -89,6 +90,31 @@ func NewDistribution(rng *rand.Rand) Distribution {
 // Sample returns a sampled feedforward neural network
 func (d Distribution) Sample(rng *rand.Rand) Sample {
 	var s Sample
+	if d.Multi != nil {
+		index := 0
+		sample := d.Multi.Sample(rng)
+		s.Layer1Weights = NewMatrix(0, 4, Middle)
+		s.Layer1Bias = NewMatrix(0, 1, Middle)
+		for i := 0; i < 4*Middle; i++ {
+			s.Layer1Weights.Data = append(s.Layer1Weights.Data, sample[index])
+			index++
+		}
+		for i := 0; i < Middle; i++ {
+			s.Layer1Bias.Data = append(s.Layer1Bias.Data, sample[index])
+			index++
+		}
+		s.Layer2Weights = NewMatrix(0, 2*Middle, 3)
+		s.Layer2Bias = NewMatrix(0, 1, 3)
+		for i := 0; i < 2*Middle*3; i++ {
+			s.Layer2Weights.Data = append(s.Layer2Weights.Data, sample[index])
+			index++
+		}
+		for i := 0; i < 3; i++ {
+			s.Layer2Bias.Data = append(s.Layer2Bias.Data, sample[index])
+			index++
+		}
+		return s
+	}
 	s.Layer1Weights = NewMatrix(0, 4, Middle)
 	s.Layer1Bias = NewMatrix(0, 1, Middle)
 	for i := 0; i < 4*Middle; i++ {
@@ -221,14 +247,37 @@ func Learn() {
 			best = networks[index+Window]
 			minLoss = networks[index+Window].Loss
 		} else {
+			fmt.Println("continue")
 			continue
 		}
+		length := (4 * Middle) + (1 * Middle) + (2 * Middle * 3) + (1 * 3)
+		vars := make([][]float32, length)
+		for i := range vars {
+			vars[i] = make([]float32, Window)
+		}
+		for j := 0; j < Window; j++ {
+			for k, value := range networks[index+j].Layer1Weights.Data {
+				vars[k][j] = float32(value)
+			}
+			for k, value := range networks[index+j].Layer1Bias.Data {
+				vars[4*Middle+k][j] = float32(value)
+			}
+			for k, value := range networks[index+j].Layer2Weights.Data {
+				vars[4*Middle+1*Middle+k][j] = float32(value)
+			}
+			for k, value := range networks[index+j].Layer2Bias.Data {
+				vars[4*Middle+1*Middle+2*Middle*3+k][j] = float32(value)
+			}
+		}
+		multi := Factor(vars, false)
+
 		fmt.Println(min, index, networks[index].Loss)
 		next := Distribution{
 			Layer1Weights: make([]Random, len(distribution.Layer1Weights)),
 			Layer1Bias:    make([]Random, len(distribution.Layer1Bias)),
 			Layer2Weights: make([]Random, len(distribution.Layer2Weights)),
 			Layer2Bias:    make([]Random, len(distribution.Layer2Bias)),
+			Multi:         &multi,
 		}
 		for j := 0; j < Window; j++ {
 			for k, value := range networks[index+j].Layer1Weights.Data {

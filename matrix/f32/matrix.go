@@ -334,7 +334,9 @@ func Factor(vars [][]float32, debug bool) Multi {
 		}
 
 		points = append(points, plotter.XY{X: float64(i), Y: float64(total)})
-		fmt.Println(i, total)
+		if debug {
+			fmt.Println(i, total)
+		}
 		i++
 	}
 
