@@ -293,6 +293,11 @@ func Factor(vars [][]float32, debug bool) Multi {
 			e.X[i*length+j] /= float32(size)
 		}
 	}
+	for i := 0; i < length; i++ {
+		for j := i + 1; j < length; j++ {
+			e.X[j*length+i] = e.X[i*length+j]
+		}
+	}
 
 	for _, w := range set.Weights[:1] {
 		factor := math.Sqrt(2.0 / float64(w.S[0]))
