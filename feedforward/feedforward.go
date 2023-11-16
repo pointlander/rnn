@@ -165,22 +165,22 @@ func Learn() {
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
 	best := Sample{}
-	noise := make([][]float64, 150)
+	/*noise := make([][]float64, 150)
 	for i := range noise {
 		s := make([]float64, 4)
 		for j := range s {
 			s[j] = rng.NormFloat64() * .1
 		}
 		noise[i] = s
-	}
+	}*/
 	inference := func(seed int64, j int) {
 		//rng := rand.New(rand.NewSource(seed))
 		loss := 0.0
 		for i := 0; i < 150; i++ {
 			fisher := data.Fisher[i]
 			input := NewMatrix(0, 4, 1)
-			for j, v := range fisher.Measures {
-				input.Data = append(input.Data, float32(v+noise[i][j]))
+			for /*j*/ _, v := range fisher.Measures {
+				input.Data = append(input.Data, float32(v /*+noise[i][j]*/))
 			}
 			output := EverettActivation(Add(MulT(networks[j].Layer1Weights, input),
 				networks[j].Layer1Bias))
@@ -238,16 +238,16 @@ func Learn() {
 				min, index = stddev, j
 			}
 		}
-		for _, s := range noise {
+		/*for _, s := range noise {
 			for j := range s {
 				s[j] = rng.NormFloat64() / float64(i)
 			}
-		}
+		}*/
 		if networks[index+Window].Loss < minLoss {
 			best = networks[index+Window]
 			minLoss = networks[index+Window].Loss
 		} else {
-			fmt.Println("continue")
+			//fmt.Println("continue", min, index, networks[index].Loss)
 			continue
 		}
 		length := (4 * Middle) + (1 * Middle) + (2 * Middle * 3) + (1 * 3)
