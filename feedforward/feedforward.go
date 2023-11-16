@@ -34,7 +34,7 @@ type Distribution struct {
 	Layer1Bias    []Random
 	Layer2Weights []Random
 	Layer2Bias    []Random
-	Multi         *Multi
+	Multi         []Multi
 }
 
 // Sample is a neural network sample
@@ -91,27 +91,27 @@ func NewDistribution(rng *rand.Rand) Distribution {
 func (d Distribution) Sample(rng *rand.Rand) Sample {
 	var s Sample
 	if d.Multi != nil {
-		index := 0
-		sample := d.Multi.Sample(rng)
 		s.Layer1Weights = NewMatrix(0, 4, Middle)
 		s.Layer1Bias = NewMatrix(0, 1, Middle)
-		for i := 0; i < 4*Middle; i++ {
-			s.Layer1Weights.Data = append(s.Layer1Weights.Data, sample[index])
-			index++
-		}
-		for i := 0; i < Middle; i++ {
-			s.Layer1Bias.Data = append(s.Layer1Bias.Data, sample[index])
-			index++
-		}
 		s.Layer2Weights = NewMatrix(0, 2*Middle, 3)
 		s.Layer2Bias = NewMatrix(0, 1, 3)
-		for i := 0; i < 2*Middle*3; i++ {
-			s.Layer2Weights.Data = append(s.Layer2Weights.Data, sample[index])
-			index++
+		for n := 0; n < Middle; n++ {
+			sample := d.Multi[n].Sample(rng)
+			index := 0
+			for i := 0; i < 4; i++ {
+				s.Layer1Weights.Data = append(s.Layer1Weights.Data, sample[index])
+				index++
+			}
+			s.Layer1Bias.Data = append(s.Layer1Bias.Data, sample[index])
 		}
-		for i := 0; i < 3; i++ {
+		for n := Middle; n < Middle+3; n++ {
+			sample := d.Multi[n].Sample(rng)
+			index := 0
+			for i := 0; i < 2*Middle; i++ {
+				s.Layer2Weights.Data = append(s.Layer2Weights.Data, sample[index])
+				index++
+			}
 			s.Layer2Bias.Data = append(s.Layer2Bias.Data, sample[index])
-			index++
 		}
 		return s
 	}
@@ -188,7 +188,7 @@ func Learn() {
 		networks[j].Loss = loss
 		done <- true
 	}
-	for i := 0; i < 4*1024; i++ {
+	for i := 0; i < 8*1024; i++ {
 		for j := range networks {
 			networks[j] = distribution.Sample(rng)
 		}
@@ -217,38 +217,50 @@ func Learn() {
 			best = networks[0]
 			minLoss = networks[0].Loss
 		} else {
-			fmt.Println("continue", networks[0].Loss)
+			//fmt.Println("continue", networks[0].Loss)
 			continue
 		}
-		length := (4 * Middle) + (1 * Middle) + (2 * Middle * 3) + (1 * 3)
-		vars := make([][]float32, length)
-		for i := range vars {
-			vars[i] = make([]float32, Window)
+		multi := make([]Multi, 0, Middle+3)
+		for n := 0; n < Middle; n++ {
+			vars := make([][]float32, 4+1)
+			for i := range vars {
+				vars[i] = make([]float32, Window)
+			}
+			for j := 0; j < Window; j++ {
+				k := 0
+				for _, value := range networks[j].Layer1Weights.Data[n*4 : (n+1)*4] {
+					vars[k][j] = float32(value)
+					k++
+				}
+				for _, value := range networks[j].Layer1Bias.Data[n : n+1] {
+					vars[k][j] = float32(value)
+					k++
+				}
+			}
+			multi = append(multi, Factor(vars, false))
 		}
-		for j := 0; j < Window; j++ {
-			k := 0
-			for _, value := range networks[j].Layer1Weights.Data {
-				vars[k][j] = float32(value)
-				k++
+		for n := 0; n < 3; n++ {
+			vars := make([][]float32, 2*Middle+1)
+			for i := range vars {
+				vars[i] = make([]float32, Window)
 			}
-			for _, value := range networks[j].Layer1Bias.Data {
-				vars[k][j] = float32(value)
-				k++
+			for j := 0; j < Window; j++ {
+				k := 0
+				for _, value := range networks[j].Layer2Weights.Data[n*4 : (n+1)*4] {
+					vars[k][j] = float32(value)
+					k++
+				}
+				for _, value := range networks[j].Layer2Bias.Data[n : n+1] {
+					vars[k][j] = float32(value)
+					k++
+				}
 			}
-			for _, value := range networks[j].Layer2Weights.Data {
-				vars[k][j] = float32(value)
-				k++
-			}
-			for _, value := range networks[j].Layer2Bias.Data {
-				vars[k][j] = float32(value)
-				k++
-			}
+			multi = append(multi, Factor(vars, false))
 		}
-		multi := Factor(vars, false)
 
 		fmt.Println(networks[0].Loss)
 		next := Distribution{
-			Multi: &multi,
+			Multi: multi,
 		}
 		distribution = next
 	}
