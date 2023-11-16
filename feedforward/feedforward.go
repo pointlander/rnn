@@ -160,7 +160,7 @@ func Learn() {
 	}
 
 	distribution := NewDistribution(rng)
-	networks := make([]Sample, 150)
+	networks := make([]Sample, 512)
 	minLoss := math.MaxFloat64
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
@@ -188,7 +188,7 @@ func Learn() {
 		networks[j].Loss = loss
 		done <- true
 	}
-	for i := 0; i < 8*1024; i++ {
+	for i := 0; i < 4*1024; i++ {
 		for j := range networks {
 			networks[j] = distribution.Sample(rng)
 		}
