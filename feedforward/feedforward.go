@@ -238,16 +238,17 @@ func Learn() {
 				min, index = stddev, j
 			}
 		}
+		index = 0
 		/*for _, s := range noise {
 			for j := range s {
 				s[j] = rng.NormFloat64() / float64(i)
 			}
 		}*/
-		if networks[index+Window].Loss < minLoss {
-			best = networks[index+Window]
-			minLoss = networks[index+Window].Loss
+		if networks[index].Loss < minLoss {
+			best = networks[index]
+			minLoss = networks[index].Loss
 		} else {
-			//fmt.Println("continue", min, index, networks[index].Loss)
+			fmt.Println("continue", min, index, networks[index].Loss)
 			continue
 		}
 		length := (4 * Middle) + (1 * Middle) + (2 * Middle * 3) + (1 * 3)
