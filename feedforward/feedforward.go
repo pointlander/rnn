@@ -165,10 +165,10 @@ func Learn() {
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
 	best := Sample{}
-	inference := func(seed int64, j int) {
+	inference := func(seed int64, i, j int) {
 		//rng := rand.New(rand.NewSource(seed))
 		loss := 0.0
-		for i := 0; i < 150; i++ {
+		for i := i; i < 150; i += 50 {
 			fisher := data.Fisher[i]
 			input := NewMatrix(0, 4, 1)
 			for /*j*/ _, v := range fisher.Measures {
@@ -188,20 +188,21 @@ func Learn() {
 		networks[j].Loss = loss
 		done <- true
 	}
+	j := rng.Intn(50)
 	for i := 0; i < 4*1024; i++ {
 		for j := range networks {
 			networks[j] = distribution.Sample(rng)
 		}
 		k, flight := 0, 0
 		for j := 0; j < cpus && k < len(networks); j++ {
-			go inference(rng.Int63(), k)
+			go inference(rng.Int63(), j, k)
 			flight++
 			k++
 		}
 		for k < len(networks) {
 			<-done
 			flight--
-			go inference(rng.Int63(), k)
+			go inference(rng.Int63(), j, k)
 			flight++
 			k++
 		}
@@ -216,6 +217,7 @@ func Learn() {
 		if networks[0].Loss < minLoss {
 			best = networks[0]
 			minLoss = networks[0].Loss
+			j = rng.Intn(50)
 		} else {
 			//fmt.Println("continue", networks[0].Loss)
 			continue
