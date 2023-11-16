@@ -65,7 +65,7 @@ func NewDistribution(rng *rand.Rand) Distribution {
 	}
 	//factor = math.Sqrt(2.0 / float64(Middle))
 	layer2Weights := make([]Random, 0, 2*Middle*3)
-	for i := 0; i < 2*Middle*3; i++ {
+	for i := 0; i < Middle*3; i++ {
 		layer2Weights = append(layer2Weights, Random{
 			Mean:   0, //factor * rng.NormFloat64(),
 			Stddev: 1, //factor * rng.NormFloat64(),
@@ -93,7 +93,7 @@ func (d Distribution) Sample(rng *rand.Rand) Sample {
 	if d.Multi != nil {
 		s.Layer1Weights = NewMatrix(0, 4, Middle)
 		s.Layer1Bias = NewMatrix(0, 1, Middle)
-		s.Layer2Weights = NewMatrix(0, 2*Middle, 3)
+		s.Layer2Weights = NewMatrix(0, Middle, 3)
 		s.Layer2Bias = NewMatrix(0, 1, 3)
 		for n := 0; n < Middle; n++ {
 			sample := d.Multi[n].Sample(rng)
@@ -107,7 +107,7 @@ func (d Distribution) Sample(rng *rand.Rand) Sample {
 		for n := Middle; n < Middle+3; n++ {
 			sample := d.Multi[n].Sample(rng)
 			index := 0
-			for i := 0; i < 2*Middle; i++ {
+			for i := 0; i < Middle; i++ {
 				s.Layer2Weights.Data = append(s.Layer2Weights.Data, sample[index])
 				index++
 			}
@@ -126,9 +126,9 @@ func (d Distribution) Sample(rng *rand.Rand) Sample {
 		s.Layer1Bias.Data = append(s.Layer1Bias.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
 	}
 
-	s.Layer2Weights = NewMatrix(0, 2*Middle, 3)
+	s.Layer2Weights = NewMatrix(0, Middle, 3)
 	s.Layer2Bias = NewMatrix(0, 1, 3)
-	for i := 0; i < 2*Middle*3; i++ {
+	for i := 0; i < Middle*3; i++ {
 		r := d.Layer2Weights[i]
 		s.Layer2Weights.Data = append(s.Layer2Weights.Data, float32(rng.NormFloat64()*r.Stddev+r.Mean))
 	}
@@ -174,7 +174,7 @@ func Learn() {
 			for /*j*/ _, v := range fisher.Measures {
 				input.Data = append(input.Data, float32(v))
 			}
-			output := EverettActivation(Add(MulT(networks[j].Layer1Weights, input),
+			output := Step(Add(MulT(networks[j].Layer1Weights, input),
 				networks[j].Layer1Bias))
 			output = TaylorSoftmax(Add(MulT(networks[j].Layer2Weights, output), networks[j].Layer2Bias))
 			expected := make([]float32, 3)
@@ -242,7 +242,7 @@ func Learn() {
 			multi = append(multi, Factor(vars, false))
 		}
 		for n := 0; n < 3; n++ {
-			vars := make([][]float32, 2*Middle+1)
+			vars := make([][]float32, Middle+1)
 			for i := range vars {
 				vars[i] = make([]float32, Window)
 			}
@@ -275,7 +275,7 @@ func Learn() {
 			input.Data = append(input.Data, float32(v))
 		}
 
-		output := EverettActivation(Add(MulT(best.Layer1Weights, input),
+		output := Step(Add(MulT(best.Layer1Weights, input),
 			best.Layer1Bias))
 		output = TaylorSoftmax(Add(MulT(best.Layer2Weights, output), best.Layer2Bias))
 		max, index := float32(0.0), 0
