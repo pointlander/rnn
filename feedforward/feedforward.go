@@ -165,14 +165,6 @@ func Learn() {
 	done := make(chan bool, 8)
 	cpus := runtime.NumCPU()
 	best := Sample{}
-	/*noise := make([][]float64, 150)
-	for i := range noise {
-		s := make([]float64, 4)
-		for j := range s {
-			s[j] = rng.NormFloat64() * .1
-		}
-		noise[i] = s
-	}*/
 	inference := func(seed int64, j int) {
 		//rng := rand.New(rand.NewSource(seed))
 		loss := 0.0
@@ -180,7 +172,7 @@ func Learn() {
 			fisher := data.Fisher[i]
 			input := NewMatrix(0, 4, 1)
 			for /*j*/ _, v := range fisher.Measures {
-				input.Data = append(input.Data, float32(v /*+noise[i][j]*/))
+				input.Data = append(input.Data, float32(v))
 			}
 			output := EverettActivation(Add(MulT(networks[j].Layer1Weights, input),
 				networks[j].Layer1Bias))
@@ -220,35 +212,12 @@ func Learn() {
 		sort.Slice(networks, func(i, j int) bool {
 			return networks[i].Loss < networks[j].Loss
 		})
-		min, index := math.MaxFloat64, 0
-		for j := 0; j < 150-Window; j++ {
-			mean := 0.0
-			for k := 0; k < Window; k++ {
-				mean += networks[j+k].Loss
-			}
-			mean /= Window
-			stddev := 0.0
-			for k := 0; k < Window; k++ {
-				diff := mean - networks[j+k].Loss
-				stddev += diff * diff
-			}
-			stddev /= Window
-			stddev = math.Sqrt(stddev)
-			if stddev < min {
-				min, index = stddev, j
-			}
-		}
-		index = 0
-		/*for _, s := range noise {
-			for j := range s {
-				s[j] = rng.NormFloat64() / float64(i)
-			}
-		}*/
-		if networks[index].Loss < minLoss {
-			best = networks[index]
-			minLoss = networks[index].Loss
+
+		if networks[0].Loss < minLoss {
+			best = networks[0]
+			minLoss = networks[0].Loss
 		} else {
-			fmt.Println("continue", min, index, networks[index].Loss)
+			fmt.Println("continue", networks[0].Loss)
 			continue
 		}
 		length := (4 * Middle) + (1 * Middle) + (2 * Middle * 3) + (1 * 3)
@@ -257,88 +226,29 @@ func Learn() {
 			vars[i] = make([]float32, Window)
 		}
 		for j := 0; j < Window; j++ {
-			for k, value := range networks[index+j].Layer1Weights.Data {
+			k := 0
+			for _, value := range networks[j].Layer1Weights.Data {
 				vars[k][j] = float32(value)
+				k++
 			}
-			for k, value := range networks[index+j].Layer1Bias.Data {
-				vars[4*Middle+k][j] = float32(value)
+			for _, value := range networks[j].Layer1Bias.Data {
+				vars[k][j] = float32(value)
+				k++
 			}
-			for k, value := range networks[index+j].Layer2Weights.Data {
-				vars[4*Middle+1*Middle+k][j] = float32(value)
+			for _, value := range networks[j].Layer2Weights.Data {
+				vars[k][j] = float32(value)
+				k++
 			}
-			for k, value := range networks[index+j].Layer2Bias.Data {
-				vars[4*Middle+1*Middle+2*Middle*3+k][j] = float32(value)
+			for _, value := range networks[j].Layer2Bias.Data {
+				vars[k][j] = float32(value)
+				k++
 			}
 		}
 		multi := Factor(vars, false)
 
-		fmt.Println(min, index, networks[index].Loss)
+		fmt.Println(networks[0].Loss)
 		next := Distribution{
-			Layer1Weights: make([]Random, len(distribution.Layer1Weights)),
-			Layer1Bias:    make([]Random, len(distribution.Layer1Bias)),
-			Layer2Weights: make([]Random, len(distribution.Layer2Weights)),
-			Layer2Bias:    make([]Random, len(distribution.Layer2Bias)),
-			Multi:         &multi,
-		}
-		for j := 0; j < Window; j++ {
-			for k, value := range networks[index+j].Layer1Weights.Data {
-				next.Layer1Weights[k].Mean += float64(value)
-			}
-			for k, value := range networks[index+j].Layer1Bias.Data {
-				next.Layer1Bias[k].Mean += float64(value)
-			}
-			for k, value := range networks[index+j].Layer2Weights.Data {
-				next.Layer2Weights[k].Mean += float64(value)
-			}
-			for k, value := range networks[index+j].Layer2Bias.Data {
-				next.Layer2Bias[k].Mean += float64(value)
-			}
-		}
-		for j := range next.Layer1Weights {
-			next.Layer1Weights[j].Mean /= Window
-		}
-		for j := range next.Layer1Bias {
-			next.Layer1Bias[j].Mean /= Window
-		}
-		for j := range next.Layer2Weights {
-			next.Layer2Weights[j].Mean /= Window
-		}
-		for j := range next.Layer2Bias {
-			next.Layer2Bias[j].Mean /= Window
-		}
-		for j := 0; j < Window; j++ {
-			for k, value := range networks[index+j].Layer1Weights.Data {
-				diff := next.Layer1Weights[k].Mean - float64(value)
-				next.Layer1Weights[k].Stddev += diff * diff
-			}
-			for k, value := range networks[index+j].Layer1Bias.Data {
-				diff := next.Layer1Bias[k].Mean - float64(value)
-				next.Layer1Bias[k].Stddev += diff * diff
-			}
-			for k, value := range networks[index+j].Layer2Weights.Data {
-				diff := next.Layer2Weights[k].Mean - float64(value)
-				next.Layer2Weights[k].Stddev += diff * diff
-			}
-			for k, value := range networks[index+j].Layer2Bias.Data {
-				diff := next.Layer2Bias[k].Mean - float64(value)
-				next.Layer2Bias[k].Stddev += diff * diff
-			}
-		}
-		for j := range next.Layer1Weights {
-			next.Layer1Weights[j].Stddev /= Window
-			next.Layer1Weights[j].Stddev = math.Sqrt(next.Layer1Weights[j].Stddev)
-		}
-		for j := range next.Layer1Bias {
-			next.Layer1Bias[j].Stddev /= Window
-			next.Layer1Bias[j].Stddev = math.Sqrt(next.Layer1Bias[j].Stddev)
-		}
-		for j := range next.Layer2Weights {
-			next.Layer2Weights[j].Stddev /= Window
-			next.Layer2Weights[j].Stddev = math.Sqrt(next.Layer2Weights[j].Stddev)
-		}
-		for j := range next.Layer2Bias {
-			next.Layer2Bias[j].Stddev /= Window
-			next.Layer2Bias[j].Stddev = math.Sqrt(next.Layer2Bias[j].Stddev)
+			Multi: &multi,
 		}
 		distribution = next
 	}
